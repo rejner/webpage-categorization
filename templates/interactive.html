@@ -1,0 +1,49 @@
+<html>
+  <head>
+    <title>WebCat</title>
+    <style>
+      /* s tag doesn't create line across text */
+      s {
+        text-decoration: none;
+      }
+      person {
+        background-color: yellowgreen;
+      }
+      product {
+        background-color: rgb(251, 255, 0);
+      }
+
+      /* table styling, must have borders */
+      table {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+
+      tr {
+        border: 1px solid black;
+      }
+
+    </style>
+  </head>
+  <body>
+    <h1>WebCat</h1>
+    <form action="/process/text" method="POST">
+        <label for="input">Input:</label><br>
+        <textarea name="input" rows="5" cols="50">
+            {% if original_input %}
+                {{ original_input }}
+            {% endif %}
+        </textarea><br>
+        <button type="submit" name="model">Process</button>
+    </form>
+    <br>
+    <!-- display resunting categories and text in some nice form, no table needed -->
+    {% if categories and text %}
+        <h2>Categories</h2>
+        <p>{{ categories }}</p>
+        <h2>Text</h2>
+        <p>{{ text|safe }}</p>
+    {% endif %}
+    
+  </body>
+</html>

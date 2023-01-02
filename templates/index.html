@@ -1,0 +1,62 @@
+<html>
+  <head>
+    <title>WebCat</title>
+    <style>
+      /* s tag doesn't create line across text */
+      s {
+        text-decoration: none;
+      }
+      person {
+        background-color: yellowgreen;
+      }
+      product {
+        background-color: rgb(251, 255, 0);
+      }
+
+      /* table styling, must have borders */
+      table {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+
+      tr {
+        border: 1px solid black;
+      }
+
+    </style>
+  </head>
+  <body>
+    <h1>WebCat</h1>
+    <!-- button which will send user to /interactive page -->
+    <form action="/interactive" method="get">
+      <input type="submit" value="Interactive">
+    </form>
+    <br>
+    <form action="/process" method="post">
+      <label for="files_path">Enter the file paths:</label><br>
+      <textarea name="files_path" rows="5" cols="50"></textarea><br>
+      <input type="submit" value="Submit">
+    </form> 
+    <br>
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Categories</th>
+          <th>Text</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for result in results %}
+        <tr>
+          <td>{{ result.file }}</td>
+          <!-- list all categories in column -->
+          <td>{{ result.categories }}</td>
+          <!-- keep tags in results.text active -->
+          <td>{{ result.text|safe }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
