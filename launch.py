@@ -3,9 +3,6 @@ from webcat.worker import WebCatWorker
 
 app = Flask(__name__)
 
-# Initialize the WebCatWorker instance
-worker = WebCatWorker()
-
 @app.route('/')
 def index():
     # Render the homepage template
@@ -14,7 +11,9 @@ def index():
 @app.route('/interactive')
 def index_interactive():
     # Render the homepage template
-    return render_template('interactive.html')
+    return render_template('interactive.html',
+    active_hypothesis=worker.nlp.classifier.hypothesis_template,
+    active_labels=','.join(worker.nlp.classifier.labels))
 
 @app.route('/process/text', methods=['POST'])
 def process_text():
@@ -23,7 +22,9 @@ def process_text():
     input = input.strip()
     categories, text = worker.process_raw_text(input)
     # re-render with the new data
-    return render_template('interactive.html', categories=categories, text=text, original_input=input)
+    return render_template('interactive.html', categories=categories, text=text,
+            original_input=input, active_hypothesis=worker.nlp.classifier.hypothesis_template,
+            active_labels=','.join(worker.nlp.classifier.labels))
 
 @app.route('/process', methods=['POST'])
 def process_files():
@@ -43,5 +44,23 @@ def process_files():
     return render_template('index.html', results=results)
     # return "Success"
 
+@app.route('/command', methods=['POST'])
+def command():
+    cmd = request.form.get('command')
+    cmd_input = request.form.get('input')
+
+    if cmd == 'set_hypothesis':
+        worker.nlp.classifier.hypothesis_template = cmd_input
+        return "New hypothesis template set!", 200, {'Content-Type': 'text/plain'} 
+
+    elif cmd == 'set_labels':
+        worker.nlp.classifier.labels = cmd_input.split(",")
+        return "New labels set!", 200, {'Content-Type': 'text/plain'}
+
+    else:
+        return "Unknown command", 404, {'Content-Type': 'text/plain'}
+
 if __name__ == "__main__":
+    # Initialize the WebCatWorker instance, but don't reload worker each time
+    worker = WebCatWorker()
     app.run()

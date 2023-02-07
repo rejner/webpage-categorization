@@ -1,49 +1,105 @@
 <html>
+  <!-- import css stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+  
   <head>
     <title>WebCat</title>
-    <style>
-      /* s tag doesn't create line across text */
-      s {
-        text-decoration: none;
-      }
-      person {
-        background-color: yellowgreen;
-      }
-      product {
-        background-color: rgb(251, 255, 0);
-      }
-
-      /* table styling, must have borders */
-      table {
-        border: 1px solid black;
-        border-collapse: collapse;
-      }
-
-      tr {
-        border: 1px solid black;
-      }
-
-    </style>
   </head>
   <body>
-    <h1>WebCat</h1>
-    <form action="/process/text" method="POST">
-        <label for="input">Input:</label><br>
-        <textarea name="input" rows="5" cols="50">
-            {% if original_input %}
-                {{ original_input }}
-            {% endif %}
-        </textarea><br>
-        <button type="submit" name="model">Process</button>
+    <!-- <h1>WebCat</h1> -->
+    <h2>Custom Input Interactive Mode</h1>
+        <!-- create input for text with a button -->
+    <form id="set_hypothesis-form" action="/process/text" method="POST">
+        <label for="text">Hypothesis Template:</label><br>
+        <textarea name="text" rows="1" cols="50">{% if active_hypothesis %}{{ active_hypothesis }}{% endif %}</textarea><br>
+        <button class="command" type="submit" name="model" value="set_hypothesis">Set Hypothesis</button>
     </form>
-    <br>
+    
+    <form id="set_labels-form" action="/process/text" method="POST">
+      <label for="input">Labels:</label><br>
+      <textarea name="text" rows="2" cols="50">{% if active_labels %}{{ active_labels }}{% endif %}</textarea><br>
+      <button class="command" type="submit" name="model" value="set_labels">Set Labels</button>
+    </form>
+
+    <form id="input-form" action="/process/text" method="POST">
+        <label for="input">Input:</label><br>
+        <textarea name="input" rows="5" cols="50">{% if original_input %}{{ original_input }}{% endif %}</textarea><br>
+        <button type="submit" name="model">Process Input</button>
+    </form>
     <!-- display resunting categories and text in some nice form, no table needed -->
     {% if categories and text %}
         <h2>Categories</h2>
-        <p>{{ categories }}</p>
-        <h2>Text</h2>
-        <p>{{ text|safe }}</p>
+        <!-- iterate over categories and create a list of them -->
+        <ul>
+            {% for category, score in categories[0].items() %}
+                <!-- score is a float and needs to be fixed to 2 decimal places,
+                     category and score should have fixed spacing.
+                -->
+                {% if score > 0.5 %}
+                    {% set color = 'high' %}
+                {% elif score > 0.25 %}
+                    {% set color = 'medium' %}
+                {% else %}
+                    {% set color = 'low' %}
+                {% endif %}
+
+                <li class="{{color}}"><span class="category">{{ category }}:</span>  ({{'%0.2f' % score|float}})</li>
+                
+
+
+            {% endfor %}
+        </ul>
+        
+        <h2>Entity Recognition</h2>
+        <p>{{ text[0]|safe }}</p>
     {% endif %}
     
   </body>
+  <script>
+      // Only run what comes next *after* the page has loaded
+      addEventListener("DOMContentLoaded", function() {
+        // Grab all of the elements with a class of command
+        // (which all of the buttons we just created have)
+        var commandButtons = document.querySelectorAll(".command");
+        for (var i=0, l=commandButtons.length; i<l; i++) {
+          var button = commandButtons[i];
+          console.log(button);
+          // For each button, listen for the "click" event
+          button.addEventListener("click", function(e) {
+            // When a click happens, stop the button
+            // from submitting our form (if we have one)
+            e.preventDefault();
+            console.log(e);
+            var clickedButton = e.target;
+            console.log(clickedButton);
+            // get value attribute of button
+            var command = clickedButton.getAttribute("value");
+      
+            // Now we need to send the data to our server
+            // without reloading the page - this is the domain of
+            // AJAX (Asynchronous JavaScript And XML)
+            // We will create a new request object
+            // and set up a handler for the response
+            var request = new XMLHttpRequest();
+            request.onload = function() {
+                // We could do more interesting things with the response
+                // or, we could ignore it entirely
+                alert(request.responseText);
+            };
+            
+            /* set post form command field in the request */
+            var form = document.getElementById(command + "-form");
+            var input = form.elements["text"].value;
+            var data = new FormData();
+            data.append("input", input);
+            data.append("command", command);
+
+            // We point the request at the appropriate command
+            request.open("POST", "/command", true);
+            // and then we send it off
+            request.send(data);
+          });
+        }
+      }, true);
+    </script>
 </html>

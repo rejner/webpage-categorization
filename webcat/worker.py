@@ -66,6 +66,9 @@ class WebCatWorker():
         categories = self.nlp.classify(input)
         entities, text = self.nlp.perform_NER(input)
         return categories, text
+    
+    def set_hypothesis_template(self, hypothesis):
+        self.nlp.set_hypothesis_template(hypothesis)
 
 if __name__ == "__main__":
     worker = WebCatWorker()

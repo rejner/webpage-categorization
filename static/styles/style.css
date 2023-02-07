@@ -1,0 +1,93 @@
+/* Hacker stylied webpage with tables, inputs etc.*/
+
+body {
+    font-family: Arial, sans-serif;
+    color: #333;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+person {
+    background-color: #ffd700;
+    /*padding: 2px 4px;*/
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+product {
+    background-color: #87ceeb;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+textarea {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    box-sizing: border-box;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    resize: none;
+}
+
+textarea {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    box-sizing: border-box;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    resize: none;
+}
+
+/* s tag doesn't create line across text */
+s {
+    text-decoration: none;
+}
+
+/* category: score pairs, category should have fixed space and align with score */
+.category {
+    display: inline-block;
+    width: 150px;
+    text-align: right;
+    padding-right: 10px;
+}
+
+/* each <li> tag with the class category should be differentiated by colors depending on the value of their score */
+li {
+    color: #333;
+}
+
+li.low {
+    color: #ff000091;
+}
+
+li.medium {
+    color: #ffa500;
+}
+
+li.high {
+    color: #008000;
+}
+
+
+
+
+
+

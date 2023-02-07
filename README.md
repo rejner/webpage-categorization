@@ -12,3 +12,6 @@ Automatic webpage content categorisation and extraction
 5. Implementovaný systém analyzujte, proměřte a řádně otestujte dle instrukcí vedoucího.
 
 6. Diskutujte dosažené výsledky a jejich možná rozšíření.
+
+# Run server:
+# flask --app launch.py --debug run

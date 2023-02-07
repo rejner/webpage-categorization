@@ -38,7 +38,10 @@ class TweetNER7():
                     entity = res[i][j].split("-")[1]
                     if entity not in ['product', 'person']:
                         continue
-                    texts[i][j] = "<{}>".format(res[i][j].split("-")[1]) + texts[i][j] + "</{}>".format(res[i][j].split("-")[1])
+                    if res[i][j].startswith("B-"):
+                        texts[i][j] = " <{}>".format(res[i][j].split("-")[1]) + texts[i][j] + "</{}>".format(res[i][j].split("-")[1])
+                    else:
+                        texts[i][j] = "<{}>".format(res[i][j].split("-")[1]) + texts[i][j] + "</{}>".format(res[i][j].split("-")[1])
 
         # transfer t1 back to text
         texts = [self.tokenizer.convert_tokens_to_string(texts[i]) for i in range(len(texts))]
