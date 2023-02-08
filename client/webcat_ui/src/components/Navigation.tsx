@@ -19,6 +19,7 @@ export const Navigation = () => {
                         <Nav.Link href="/">Home</Nav.Link>
                         <Nav.Link href="/interactive_parser">Interactive Parser</Nav.Link>
                         <Nav.Link href="/files_parser">Files Parser</Nav.Link>
+                        <Nav.Link href="/template_maker">Template Maker</Nav.Link>
                     </Nav>
                 </Navbar.Collapse>
             </Container>

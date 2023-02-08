@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import Layout from "./components/Layout";
 import InteractiveParser from "./pages/InteractiveParser";
 import FilesParser from "./pages/FilesParser";
+import TemplateMaker from "./pages/TemplateMaker";
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 {/* Create context for storing server IP and other configuration stuff */}
@@ -23,6 +24,7 @@ export default function App() {
                 <Route index element={<Home />} />
                 <Route path="interactive_parser" element={<InteractiveParser />} />
                 <Route path="files_parser" element={<FilesParser />} />
+                <Route path="template_maker" element={<TemplateMaker />} />
               </Route>
             </Routes>
       </BrowserRouter>
