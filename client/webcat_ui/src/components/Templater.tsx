@@ -74,24 +74,24 @@ function Templater() {
             {/* Create 5 labels which can be selected (they behave like checkbox) in primary, warning etc. colors. */}
 
             <Row>
-                    {
-                        ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light'].map((variant, idx) => (
-                        <>
-                        <Col>
-                            {
-                            (selectedLabel === variant) ? 
-                                    <Button key={idx} variant={variant} onClick={() => setSelectedLabel(variant)} 
-                                            className="mt-3" style={{width: "10vw"}}>{colorToSectionMapping[variant]}</Button>
-                                :
-                                    <Button key={idx} variant={variant} onClick={() => setSelectedLabel(variant)} 
-                                            className="mt-3 text-light" style={{width: "10vw", background: 'none'}}>{colorToSectionMapping[variant]}</Button>
-                                
-                            }
-    
-                        </Col>
-                        </>
-                        ))
-                    }
+                {
+                    ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light'].map((variant, idx) => (
+                    <>
+                    <Col>
+                        {
+                        (selectedLabel === variant) ? 
+                                <Button key={idx} variant={variant} onClick={() => setSelectedLabel(variant)} 
+                                        className="mt-3" style={{width: "10vw"}}>{colorToSectionMapping[variant]}</Button>
+                            :
+                                <Button key={idx} variant={variant} onClick={() => setSelectedLabel(variant)} 
+                                        className="mt-3 text-light" style={{width: "10vw", background: 'none'}}>{colorToSectionMapping[variant]}</Button>
+                            
+                        }
+
+                    </Col>
+                    </>
+                    ))
+                }
             </Row>
             </Container>
         </ControlsContext.Provider>

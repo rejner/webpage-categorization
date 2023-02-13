@@ -1,2 +1,4 @@
 data/*
 client/webcat_ui/node_modules
+scripts/models/*
+__pycache__
