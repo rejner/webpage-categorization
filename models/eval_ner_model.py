@@ -12,8 +12,6 @@ from models.datasets.tweebank_ner.loader import TweebankNERLoader
 from models.datasets.tweetner7.loader import Tweetner7Loader
 from models.datasets.webcat_SDME.loader import WebCatSDMELoader
 
-from data.entity_recognition_datasets.src.utils import *
-
 
 if __name__ == "__main__":
     path = "/workspaces/webpage_categorization/models/checkpoints/my_ner_model__ro_ber_ta__last__four_lstm_20230224_093348"

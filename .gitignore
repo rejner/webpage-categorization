@@ -6,3 +6,4 @@ models/checkpoints/*
 models/logs/*
 **/models/tmp/*
 logs/*
+venv
