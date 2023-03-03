@@ -4,19 +4,19 @@ import tensorflow_hub as hub
 import tensorflow_text as text
 import tensorflow_datasets as tfds
 
-class NERTokenizerForBERT(keras.layers.Layer):
+class NERTokenizerForALBERT(keras.layers.Layer):
     """
-    Tokenizer for BERT model
+    Tokenizer for ALBERT model
     The data from dataset is in the format of:
     {
         'tokens': [token1, token2, ...],
         'ner': [label1, label2, ...]
     }
-    Tokens must be preprocessed before feeding into BERT model.
+    Tokens must be preprocessed before feeding into ALBERT model.
     Also, the labels must be adjusted to the new tokens after preprocessing.
     """
     def __init__(self, **kwargs):
-        super(NERTokenizerForBERT, self).__init__(**kwargs)
+        super(NERTokenizerForALBERT, self).__init__(**kwargs)
         self.preprocess = hub.load('https://tfhub.dev/tensorflow/bert_en_cased_preprocess/3')
         self.tokenizer = hub.KerasLayer(self.preprocess.tokenize)
         self.bert_pack_inputs = hub.KerasLayer(self.preprocess.bert_pack_inputs, arguments=dict(seq_length=128))
@@ -109,6 +109,13 @@ class NERTokenizerForBERT(keras.layers.Layer):
         
         tokenized_inputs = tf.expand_dims(tokenized_inputs, axis=0)
         encoder_inputs = self.bert_pack_inputs([tokenized_inputs])
+        # input_type_ids, input_mask, input_word_ids = encoder_inputs.vales for BERT
+        # we need to convert into input_ids, input_mask and segment_ids for ALBERT
+        input_ids = encoder_inputs['input_word_ids']
+        input_mask = encoder_inputs['input_mask']
+        segment_ids = encoder_inputs['input_type_ids']
+        # encoder_inputs = {'input_ids': input_ids, 'input_mask': input_mask, 'segment_ids': segment_ids}
+        encoder_inputs = dict(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids)
         return encoder_inputs, labels
 
     def get_config(self):
@@ -120,7 +127,7 @@ class NERTokenizerForBERT(keras.layers.Layer):
         return cls(**config)
 
 def preprocess_for_NER(ds):
-    tokenizer = NERTokenizerForBERT()
+    tokenizer = NERTokenizerForALBERT()
 
     @tf.function
     def preprocess(example):
@@ -140,7 +147,7 @@ def preprocess_for_NER(ds):
     return ds.map(preprocess)
 
 def run_test_mode(ds):
-    tokenizer = NERTokenizerForBERT()
+    tokenizer = NERTokenizerForALBERT()
 
     def preprocess(example):
         test_input = example['tokens']
@@ -177,7 +184,7 @@ def run_test_mode(ds):
         
         encoder_inputs, labels = preprocess(example)
 
-        tokens = tokenizer.ids_to_tokens(encoder_inputs["input_word_ids"].numpy())
+        tokens = tokenizer.ids_to_tokens(encoder_inputs["input_ids"].numpy())
         sep_index = tokens.index("[SEP]") + 1
         tokens = tokens[:sep_index]
         gt_labels_str = tokenizer.ids_to_labels(labels.numpy())
@@ -199,11 +206,11 @@ if __name__ == "__main__":
     
     ds = tfds.load('conll2003', split='train')
     # ds = tfds.as_dataframe(ds)
-    tokenizer = NERTokenizerForBERT()
+    tokenizer = NERTokenizerForALBERT()
 
-    # ds_test = ds.take(10)
-    # run_test_mode(ds_test)
-    # exit(0)
+    ds_test = ds.take(10)
+    run_test_mode(ds_test)
+    exit(0)
     
     # apply preprocess to each row of the dataframe
     ds = ds.apply(preprocess_for_NER)
