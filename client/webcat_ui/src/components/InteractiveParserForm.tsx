@@ -80,8 +80,8 @@ function InteractiveParserForm() {
                 {/* categories is an array of 1 element with an object where keys are categories and values are scores */}
                 {categories && text && 
                 <Container className='text-light'> <h3 className='mb-3'>Categories:</h3> {
-                    Object.keys(categories[0]).map((key) => {
-                        var score = parseFloat(categories[0][key]);
+                    Object.keys(categories).map((key) => {
+                        var score = parseFloat(categories[key]);
                         var color = 'bg-danger';
                         if (score > 0.5) {
                             color = 'bg-success';
@@ -104,7 +104,7 @@ function InteractiveParserForm() {
                 </Container>}
                 {/* text contains tags which should be added into DOM */}
                 
-                {text && <Container className='text-light mb-5'> <h3>Named Entity Recognition:</h3><div className='text-light mt-3' dangerouslySetInnerHTML={{__html: text[0]}} /></Container>}
+                {text && <Container className='text-light mb-5'> <h3>Named Entity Recognition:</h3><div className='text-light mt-3' dangerouslySetInnerHTML={{__html: text}} /></Container>}
                 
                 
             </Stack>

@@ -21,7 +21,7 @@ class NERTokenizerForRoBERTa(keras.layers.Layer):
         self.preprocess = hub.load('https://tfhub.dev/jeongukjae/roberta_en_cased_preprocess/1')
         self.tokenizer = hub.KerasLayer(self.preprocess.tokenize)
         self.bert_pack_inputs = hub.KerasLayer(self.preprocess.bert_pack_inputs, arguments=dict(seq_length=seq_length))
-        self.vocab_file = 'vocab_roberta.json'
+        self.vocab_file = 'models/vocab_roberta.json'
         self.max_seq_length = seq_length
         self.special_tokens_dict = self.preprocess.tokenize.get_special_tokens_dict()
         self.label_mapping = {0: "[PAD]", 1: "O", 2: "B-PER", 3: "I-PER", 4: "B-ORG", 5: "I-ORG", 6: "B-LOC", 7: "I-LOC", 8: "B-MISC", 9: "I-MISC", 10: "B-PROD", 11: "I-PROD", 12: "B-WALL"}

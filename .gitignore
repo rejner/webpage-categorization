@@ -1,7 +1,7 @@
 data/*
 client/webcat_ui/node_modules
 scripts/models/*
-__pycache__
+**/__pycache__
 models/checkpoints/*
 models/logs/*
 **/models/tmp/*

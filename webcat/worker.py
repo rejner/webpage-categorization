@@ -1,77 +1,41 @@
-from webcat.nlp import WebCatNLP
-from webcat.parser import WebCatParser
+from nlp.pipeline import WebCatPipeline
+import os
 
 class WebCatWorker():
-    def __init__(self) -> None:
-        self.parser = WebCatParser()
-        self.nlp = WebCatNLP()
+    def __init__(self):
+        self.pipeline = WebCatPipeline()
     
-    def process_files(self, files_path:list):
-        contents = self.parser.parse_files(files_path)
-        files_list = []
-        categories_list = []
-        text_list = []
-        cnt = 0
-        for file in contents:
-            for text in contents[file]:
-                categories = self.nlp.classify(text)
-                entities, text = self.nlp.perform_NER(text)
-                # split = text.split(" ")
-                print("=====================================")
-                print("File: ", file)
-                # only categories with score > 0.7 (categories is a dict)
-                # categories = {k: v for k, v in categories.items() if v > 0.5}
-                print("Categories: ", categories)
-                print(text)
-                print("=====================================")
-                files_list.append(file)
-                categories_list.append(categories)
-                text_list.append(text)
-                cnt += 1
-                if cnt > 10: break 
-        return files_list, categories_list, text_list
-    
-    def process_files_batch(self, files_path:list, batch_size=4):
-        contents = self.parser.parse_files(files_path)
-        # merge all lists from contents dict into one
-        contents = [item for sublist in contents.values() for item in sublist]
-
-        files_list = []
-        categories_list = []
-        text_list = []
-        cnt = 0
-        # create iterator for the contents
-        contents_iter = iter(contents)
-        # get the first batch
-        if len(contents) < batch_size:
-            batch = contents
-        else:
-            batch = [next(contents_iter) for _ in range(batch_size)]
+    def create_files_list(self, path:str, **kwargs):
+        recursive = kwargs.get("recursive", False)
+        # if path is a file, return it
+        if os.path.isfile(path):
+            return [path]
         
-        while batch:
-            categories = self.nlp.classify(batch)
-            entities, texts = self.nlp.perform_NER(batch)
-            files_list.extend(["file" for _ in range(batch_size)])
-            categories_list.extend(categories)
-            text_list.extend(texts)
-            # get the next batch
-            # catch StopIteration exception
-            try:
-                batch = [next(contents_iter) for _ in range(batch_size)]
-            except StopIteration:
-                batch = False
-        return files_list, categories_list, text_list
+        # if path is a directory, return all files in it
+        # if recursive is True, return all files in all subdirectories
+        files = []
+        if os.path.isdir(path):
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    files.append(os.path.join(root, file))
+                if not recursive:
+                    break
+            return files
+        
+        raise Exception("Path is not a file or directory")
+        
+
+    def process_files(self, files_path:list, **kwargs):
+        files = self.create_files_list(files_path, **kwargs)
+        return self.pipeline.process_files(files, **kwargs)
  
-    def process_raw_text(self, input: str):
-        categories = self.nlp.classify(input)
-        entities, text = self.nlp.perform_NER(input)
-        return categories, text
-    
-    def set_hypothesis_template(self, hypothesis):
-        self.nlp.set_hypothesis_template(hypothesis)
+    def process_raw_text(self, text: str, **kwargs):
+        return self.pipeline.process_raw_text(text, **kwargs)
 
 if __name__ == "__main__":
     worker = WebCatWorker()
-    worker.process_batch([
+    worker.process_files([
         "data/abraxas-forums/abraxas-forums/2015-07-04/index.php_action=recent;start=10",
+        "/workspaces/webpage_categorization/data/bungee54-forums/bungee54-forums/2014-11-05/viewtopic.php_pid=4282",
     ])
+    #print(data)

@@ -3,12 +3,21 @@ import { Stack, Container, Button, Form, Row, Col } from 'react-bootstrap';
 import { useFilePicker, Validator } from 'use-file-picker';
 import { AppContext } from '../index';
 
+// interface for incoming objects
+interface Output {
+    // object of string - float pairs
+    "categories": { [key: string]: number },
+    "text": string,
+    "entities": string[],
+    "file": string,
+}
 
 function FilesParserForm() {
     const [hypothesisTemplate, setHypothesisTemplate] = React.useState("Talks about {}.");
     const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency");
     const [path, setPath] = React.useState("");
     const [useRecursive, setUseRecursive] = React.useState(false);
+    const [output, setOutput] = React.useState() as [[Output], any];
     const [openFileSelector, { filesContent, loading, errors, plainFiles, clear }] = useFilePicker({
         multiple: false,
         readAs: 'DataURL',
@@ -25,11 +34,11 @@ function FilesParserForm() {
             "hypothesis_template": hypothesisTemplate,
             "labels": labels.split(','),
             "path": path,
-            "use_recursive": useRecursive
+            "recursive": useRecursive
         };
 
         // Send the request to the server
-        fetch(`http://${server_ip}:${server_port}/api_v1/webcat_interactive`, {
+        fetch(`http://${server_ip}:${server_port}/api_v1/webcat_files_parser`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -37,8 +46,9 @@ function FilesParserForm() {
             body: JSON.stringify(requestBody)
         })
         .then(response => response.json(), error => console.log("Error: " + error))
-        .then(data => {
-            console.log('Success:', data);
+        .then(output => {
+            console.log('Success:', output);
+            setOutput(output);
         }, error => console.log("Error: " + error)
         )
     }
@@ -85,9 +95,47 @@ function FilesParserForm() {
                         Parse
                     </Button>
                 </Form>
-                <div className="border rounded text-light">First item</div>
-                <div className="border rounded text-light">Second item</div>
-                <div className="border rounded text-light">Third item</div>
+
+                {
+                    output &&
+                    output.map((item) => {
+                        return (
+                            <Container className='text-light mb-3 mt-3'>
+                                {/*an empty separator line*/}
+                                <div className='border rounded text-light mb-5'></div>
+                                {/* filename */}
+                                <Container className='text-light mb-3'> <h3>Path to file:</h3><div className='text-light mt-3'/>{item.file}</Container>
+                                <Container className='text-light mb-3'> <h3 className='mb-3'>Categories:</h3> {
+                                Object.keys(item.categories).map((key) => {
+                                    var score = item.categories[key];
+                                    var color = 'bg-danger';
+                                    if (score > 0.5) {
+                                        color = 'bg-success';
+                                    }
+                                    else if (score > 0.25) {
+                                        color = 'bg-warning';
+                                    }
+                                    // predefine className and add color to it
+                                    var className = 'text-light m-1 p-1 rounded w-50 ' + color;
+                                    return (
+                                    // set background color based on score
+                                    <Row className={className} style={{backgroundColor: color}}> 
+                                        <Col>{key}</Col>
+                                        <Col>{score.toFixed(2)}</Col>
+                                    </Row>
+                                    );
+                                }
+                                
+                                )}
+                                </Container>
+                                <Container className='text-light mb-5'> <h3>Text with Named Entities:</h3><div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.text}} /></Container>
+                            </Container>
+
+                            )
+                        }
+                    )
+                }
+
             </Stack>
         </Container>
     );
