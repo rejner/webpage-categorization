@@ -1,22 +1,50 @@
 import React, { useState, useEffect, useContext } from "react";
-import { ControlsContext } from "./Templater";
+import { ControlsContext, TemplatesContext } from "./Templater";
+import { colorToSectionMapping } from "./Templater";
 
 interface Props {
   el: HTMLElement;
   depth: number;
 }
 
-const RenderElement: React.FC<Props> = ({ el, depth }) => {
+// Eacch element could be assigned to a section, which is a template
+export interface SectionTemplate {
+  type: string; // "post-area | author | post-header | post-body"
+  tag: string;
+  id?: string;
+  classes?: string[];
+}
+
+export const RenderElement: React.FC<Props> = ({ el, depth }) => {
   const [isOpen, setOpen] = useState(false);
   const [elementText, setElementText] = useState('');
   const [isSelected, setSelected] = useState(false);
   const [label, setLabel] = useState<string | undefined>(undefined);
-  const {selectedLabel, setSelectedLabel} = useContext(ControlsContext);
+  const {selectedLabel, setSelectedLabel, unrollAll, setUnrollAll} = useContext(ControlsContext);
+  const {createTemplate, setCreateTemplate, templates, addTemplate} = useContext(TemplatesContext);
 
   useEffect(() => {
     if (el.textContent)
         setElementText(el.textContent?.trim());
   }, [el]);
+
+  useEffect(() => {
+      setOpen(unrollAll);
+  }, [unrollAll]);
+
+  useEffect(() => {
+      if (createTemplate && isSelected) {
+          let newTemplate = {
+              type: colorToSectionMapping[label!],
+              tag: el.tagName.toLowerCase(),
+              id: el.id,
+              classes: el.className.split(" ")
+          };
+          addTemplate(newTemplate);
+      }
+  }, [createTemplate]);
+
+
 
   const toggleOpen = () => {
     setOpen(!isOpen);

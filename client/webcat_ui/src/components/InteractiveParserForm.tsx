@@ -15,7 +15,7 @@ function InteractiveParserForm() {
         readAs: 'DataURL',
     });
     // Read server_ip and server_port from the context
-    const { server_ip, server_port } = React.useContext(AppContext);
+    const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -30,7 +30,7 @@ function InteractiveParserForm() {
 
         // Send the request to the server
 
-        fetch(`http://${server_ip}:${server_port}/api_v1/webcat_interactive`, {
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_interactive`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

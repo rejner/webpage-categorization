@@ -12,7 +12,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 {/* Create context for storing server IP and other configuration stuff */}
 
 export const AppContext = React.createContext({'server_ip': '127.0.0.1',
-                                        'server_port': '5000'});
+                                               'server_port': '5000',
+                                               'server_api': '/api/v1'});
 
 
 export default function App() {

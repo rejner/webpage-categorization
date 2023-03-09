@@ -3,6 +3,7 @@ from sklearn.cluster import KMeans
 from sklearn.feature_extraction import DictVectorizer
 import re
 import nltk
+import datetime
 nltk.download('punkt')
 nltk.download('stopwords')
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ def extract_element_features(element, total_text_length=None):
         'class': element.get('class', []),
         'id': element.get('id', []),
     }
-    if features['tag'] in ['a', 'link', 'html', 'head', 'body']:
+    if features['tag'] in ['a', 'link', 'html', 'head', 'body', 'meta', 'title', 'style', 'script', 'noscript', 'br', 'img', 'nav', 'header']:
         return None
  
     # features['level_1_children_tags'] = [child.name for child in element.children if child.name]
@@ -121,7 +122,9 @@ def visualize_bins(kmeans, vectorizer: DictVectorizer, clusters, bins):
     for i, centroid in enumerate(centroids_2d):
         plt.text(centroid[0], centroid[1], str(i))
     
-    plt.savefig(f"/workspaces/webpage_categorization/images/cluster_sizes_{time.time():.0f}.png")
+    # create timestamp in format 2020-01-01_00-00-00
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    plt.savefig(f"/workspaces/webpage_categorization/images/cluster_sizes_{timestamp}.png")
     plt.show()
 
 
@@ -133,4 +136,4 @@ if __name__ == "__main__":
     #     detect_repeating_patterns(html)
     with open("/workspaces/webpage_categorization/data/abraxas-forums/abraxas-forums/2015-07-04/index.php_topic=390.0", 'r') as f:
         html = f.read()
-        detect_repeating_patterns(html)
+        detect_repeating_patterns(html, n_clusters=10)

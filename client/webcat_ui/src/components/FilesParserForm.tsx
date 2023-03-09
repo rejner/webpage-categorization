@@ -23,7 +23,7 @@ function FilesParserForm() {
         readAs: 'DataURL',
     });
     // Read server_ip and server_port from the context
-    const { server_ip, server_port } = React.useContext(AppContext);
+    const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -38,7 +38,7 @@ function FilesParserForm() {
         };
 
         // Send the request to the server
-        fetch(`http://${server_ip}:${server_port}/api_v1/webcat_files_parser`, {
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_files_parser`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
