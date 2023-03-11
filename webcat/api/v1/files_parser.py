@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-from worker import WebCatWorker
+from .worker import worker
 
 files_parser = reqparse.RequestParser()
 files_parser.add_argument('hypothesis_template', type=str)
@@ -25,15 +25,12 @@ class WebCatFilesParser(Resource):
 
     def post(self):
         # parse arguments in a form request
-        global worker
         args = files_parser.parse_args()
         # verify arguments
         valid, msg = self.verify_request(args)
         if not valid:
             return {'error': msg}, 400
 
-        if worker is None:
-            worker = WebCatWorker()
         try:
             result = worker.process_files(args['path'], 
                                         **{'hypothesis_template': args['hypothesis_template'], 

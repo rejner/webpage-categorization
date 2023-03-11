@@ -9,9 +9,6 @@ from api.v1.templates import WebCatTemplates
 
 # enable CORS for localhost
 from flask_cors import CORS
-
-worker = None
-
 app = Flask(__name__)
 # enable CORS for localhost
 CORS(app)

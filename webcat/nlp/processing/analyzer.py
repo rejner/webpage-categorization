@@ -2,6 +2,7 @@ import sys
 from os import path
 sys.path.append(path.dirname(__file__) + "/..")
 from models.classification.joeddav_xlm_roberta import XLMRobertaLarge
+from models.classification.bart_large_mnli import BARTLarge
 from models.ner.tweetner7 import TweetNER7
 
 '''
@@ -9,7 +10,8 @@ from models.ner.tweetner7 import TweetNER7
 '''
 class WebCatAnalyzer():
     def __init__(self):
-        self.classifier = XLMRobertaLarge()
+        # self.classifier = XLMRobertaLarge()
+        self.classifier = BARTLarge()
         self.ner_model = TweetNER7()
 
     def analyze_content(self, content, **kwargs):

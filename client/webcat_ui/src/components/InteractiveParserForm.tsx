@@ -5,8 +5,8 @@ import { AppContext } from '../index';
 
 
 function InteractiveParserForm() {
-    const [hypothesisTemplate, setHypothesisTemplate] = React.useState("Talks about {}.");
-    const [labels, setLabels] = React.useState("drugs, hacking, fraud, counterfeit goods, cybercrime, cryptocurrency");
+    const [hypothesisTemplate, setHypothesisTemplate] = React.useState("This example is about {}.");
+    const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency,delivery");
     const [input, setInput] = React.useState("");
     const [categories, setCategories] = React.useState();
     const [text, setText] = React.useState();

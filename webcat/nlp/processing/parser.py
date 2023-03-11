@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 import re
 from .parsing_strategy import HighestChildrenFrequencyStrategy
+from .parsing_strategy import StoredTemplatesStrategy
 
 url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 email_pattern = r'[\w\.-]+@[\w\.-]+'
@@ -19,7 +20,8 @@ class WebCatParser():
         self.format = "%(asctime)s: %(message)s"
         logging.basicConfig(format=self.format, level=logging.INFO, datefmt="%H:%M:%S")
         self.timeout = timeout
-        self.strategy = HighestChildrenFrequencyStrategy()
+        self.strategy = StoredTemplatesStrategy()
+        self.fallback_strategy = HighestChildrenFrequencyStrategy()
 
     def parse_files(self, files_path:list):
         """

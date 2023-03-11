@@ -3,7 +3,7 @@ import os
 
 class WebCatWorker():
     def __init__(self):
-        self.pipeline = WebCatPipeline()
+        self.pipeline = None
     
     def create_files_list(self, path:str, **kwargs):
         recursive = kwargs.get("recursive", False)
@@ -26,11 +26,17 @@ class WebCatWorker():
         
 
     def process_files(self, files_path:list, **kwargs):
+        if self.pipeline is None:
+            self.pipeline = WebCatPipeline()
         files = self.create_files_list(files_path, **kwargs)
         return self.pipeline.process_files(files, **kwargs)
  
     def process_raw_text(self, text: str, **kwargs):
+        if self.pipeline is None:
+            self.pipeline = WebCatPipeline()
         return self.pipeline.process_raw_text(text, **kwargs)
+
+worker = WebCatWorker()
 
 if __name__ == "__main__":
     worker = WebCatWorker()

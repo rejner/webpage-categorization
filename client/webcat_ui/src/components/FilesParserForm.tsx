@@ -13,8 +13,8 @@ interface Output {
 }
 
 function FilesParserForm() {
-    const [hypothesisTemplate, setHypothesisTemplate] = React.useState("Talks about {}.");
-    const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency");
+    const [hypothesisTemplate, setHypothesisTemplate] = React.useState("This example is about {}.");
+    const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency,delivery");
     const [path, setPath] = React.useState("");
     const [useRecursive, setUseRecursive] = React.useState(false);
     const [output, setOutput] = React.useState() as [[Output], any];
