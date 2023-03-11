@@ -7,6 +7,8 @@ interactive_parser.add_argument('hypothesis_template', type=str)
 interactive_parser.add_argument('labels', type=str, action='append')
 interactive_parser.add_argument('input', type=str)
 
+worker = None
+
 class WebCatInteractive(Resource):
 
     def verify_interactive_request(self, args):

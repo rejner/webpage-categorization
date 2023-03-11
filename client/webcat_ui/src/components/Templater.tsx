@@ -78,7 +78,7 @@ function Templater() {
     // use context to pass selectedLabel to child components
 
     useEffect(() => {
-        if (filesContent.length > 0 && !doc) {
+        if (filesContent.length > 0) {
           const parser = new DOMParser();
           let document = parser.parseFromString(filesContent[0].content, 'text/html');
           const elements = document.querySelectorAll('meta, script, style, link, head');

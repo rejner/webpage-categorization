@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/workspaces/webpage_categorization")
+sys.path.append("../webpage_categorization")
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
