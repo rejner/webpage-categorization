@@ -26,7 +26,9 @@ class WebCatTemplates(Resource):
         return True, ""
 
     def get(self):
-        return {'hello': 'world'}
+        # return template_storage
+        return json.dumps(self.template_storage), 200
+    
 
     def post(self):
         # parse arguments in a form request

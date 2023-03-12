@@ -2,10 +2,8 @@
 // User can move with mouse and click on elements to get their css selectors.
 
 import React, { useState, useEffect } from 'react';
-import { Stack, Container, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
-import { useFilePicker, Validator } from 'use-file-picker';
-import { useLocation } from 'react-router-dom';
-import { format } from 'path';
+import { Container, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
+import { useFilePicker } from 'use-file-picker';
 import { RenderElement, SectionTemplate } from './RenderElement';
 import { AppContext } from '..';
 
@@ -81,30 +79,30 @@ function Templater() {
         if (filesContent.length > 0) {
           const parser = new DOMParser();
           let document = parser.parseFromString(filesContent[0].content, 'text/html');
-          const elements = document.querySelectorAll('meta, script, style, link, head');
-          elements.forEach(element => element.remove());
-          const textNodes = document.querySelectorAll('text');
-          textNodes.forEach(textNode => {
-            if (textNode.textContent && !textNode.textContent.trim()) {
-              textNode.remove();
-            }
-          });
+        //   const elements = document.querySelectorAll('meta, script, style, link, head');
+        //   elements.forEach(element => element.remove());
+        //   const textNodes = document.querySelectorAll('text');
+        //   textNodes.forEach(textNode => {
+        //     if (textNode.textContent && !textNode.textContent.trim()) {
+        //       textNode.remove();
+        //     }
+        //   });
           setDoc(document);
         }
-      }, [filesContent, doc]);
+      }, [filesContent]);
 
-      useEffect(() => {
-        if (templates.length > 0) {
-            // get index of last template
-            let index = templates.length - 1;
-            // get last template
-            let lastTemplate = templates[index];
-            if (lastTemplate.type === "none") {
-                // if last template is of type none, remove it
-                templates.pop();
-            }
+    useEffect(() => {
+    if (templates.length > 0) {
+        // get index of last template
+        let index = templates.length - 1;
+        // get last template
+        let lastTemplate = templates[index];
+        if (lastTemplate.type === "none") {
+            // if last template is of type none, remove it
+            templates.pop();
         }
-        }, [templates]);
+    }
+    }, [templates]);
 
 
       return (
@@ -116,29 +114,27 @@ function Templater() {
                 {/* Create 5 labels which can be selected (they behave like checkbox) in primary, warning etc. colors. */}
 
                 <Row className='mt-0'>
-                {
-                    ['primary', 'secondary', 'success', 'warning'].map((variant, idx) => (
-                    <>
-                    <Col>
-                        {
-                        (selectedLabel === variant) ? 
-                                <Button key={idx} variant={variant} onClick={() => setSelectedLabel(variant)} 
-                                        className="mt-3" style={{width: "10vw"}}>{colorToSectionMapping[variant]}</Button>
-                            :
-                                <Button key={idx} variant={variant} onClick={() => setSelectedLabel(variant)} 
-                                        className="mt-3 text-light" style={{width: "10vw", background: 'none'}}>{colorToSectionMapping[variant]}</Button>
-                            
-                        }
+                    {
+                        ['primary', 'secondary', 'success', 'warning'].map((variant, idx) => (
+                        <Col key={'button-wrap-col-' + idx.toString()}>
+                            {
+                            (selectedLabel === variant) ? 
+                                    <Button key={'button-type-' + idx.toString()} variant={variant} onClick={() => setSelectedLabel(variant)} 
+                                            className="mt-3" style={{width: "10vw"}}>{colorToSectionMapping[variant]}</Button>
+                                :
+                                    <Button key={'button-type-' + idx.toString()} variant={variant} onClick={() => setSelectedLabel(variant)} 
+                                            className="mt-3 text-light" style={{width: "10vw", background: 'none'}}>{colorToSectionMapping[variant]}</Button>
+                                
+                            }
 
+                        </Col>
+                        ))
+                    }
+                    {/* Create "Unroll all" checkbox */}
+                    <Col key={"button-wrap-col-checkbox"}>
+                        <Form.Check key="okokok" type="checkbox" id="custom-switch" label="Unroll All" className="mt-3" style={{width: "10vw", color: "white"}}
+                                    onChange={() => setUnrollAll(!unrollAll)} />
                     </Col>
-                    </>
-                    ))
-                }
-                {/* Create "Unroll all" checkbox */}
-                <Col>
-                    <Form.Check type="checkbox" id="custom-switch" label="Unroll All" className="mt-3" style={{width: "10vw", color: "white"}}
-                                onChange={() => setUnrollAll(!unrollAll)} />
-                </Col>
                 </Row>
 
                 <Container>
@@ -207,21 +203,17 @@ function Templater() {
                 <Container className="bg-none text-light mt-1 mb-5 h-25 overflow-auto border-bottom border-dark">
                     {templates.length > 0 && <h4>Templates Preview</h4>}
                     {templates.length > 0 && templates.map((template, idx) => (
-                        <div key={idx}>
+                        <div key={'template-wrap-' + idx.toString()}>
                             <h5>{template.type}</h5>
                             <ul>
-                                {Object.keys(template).map((section, idx) => (
-                                    <li key={idx}>{section}: {Object.values(template)[idx]}</li>
+                                {Object.keys(template).map((section, attr_idx) => (
+                                    <li key={`template-${idx}-${attr_idx}`}>{section}: {Object.values(template)[idx]}</li>
                                 ))}
                             </ul>
-
                         </div>
                     ))}
                 
                 </Container>
-                
-                
-
             </ControlsContext.Provider>
         </TemplatesContext.Provider>
       );

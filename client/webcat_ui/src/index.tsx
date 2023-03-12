@@ -8,6 +8,7 @@ import InteractiveParser from "./pages/InteractiveParser";
 import FilesParser from "./pages/FilesParser";
 import TemplateMaker from "./pages/TemplateMaker";
 import 'bootstrap/dist/css/bootstrap.min.css';
+import TemplateManagerPage from './pages/TemplateManagerPage';
 
 {/* Create context for storing server IP and other configuration stuff */}
 
@@ -26,6 +27,7 @@ export default function App() {
                 <Route path="interactive_parser" element={<InteractiveParser />} />
                 <Route path="files_parser" element={<FilesParser />} />
                 <Route path="template_maker" element={<TemplateMaker />} />
+                <Route path="template_manager" element={<TemplateManagerPage />} />
               </Route>
             </Routes>
       </BrowserRouter>

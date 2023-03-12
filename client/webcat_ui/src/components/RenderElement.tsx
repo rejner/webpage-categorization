@@ -56,11 +56,20 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
     console.log("weee");
     console.log(selectedLabel);
     };
+  
+  function extractTopLevelText(el: HTMLElement) {
+    let text = "";
+    Array.from(el.childNodes).forEach((child) => {
+      if (child.nodeType === 3) {
+        text += child.textContent;
+      }
+    });
+    return text;
+  }
 
   return (
-    <div key={el.innerHTML}  className={isSelected ? "bg-" + label + " border-left-0 border-primary" : "border-left-0 border-primary"}>
+    <div className={isSelected ? "bg-" + label + " border-left-0 border-primary" : "border-left-0 border-primary"}>
 
-        <>
           <div style={{ cursor: 'pointer' }} className="border-top border-dark">
             {/* Put &nbsp; times depth */}
             {Array(depth).fill(0).map((_, index) => <span key={index}>&nbsp;&nbsp;&nbsp;&nbsp;</span>)}
@@ -73,71 +82,26 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
           </div>
           {isOpen && (
             <>
-              {//elementText && <div>{elementText}</div>}
-                }
+              { extractTopLevelText(el).trim().length > 1 &&
+                  
+                  <div className="bg-dark text-muted"> {Array(depth).fill(0).map((_, index) => <span key={index}>&nbsp;&nbsp;&nbsp;&nbsp;</span>)} &nbsp;&nbsp;&nbsp;&nbsp; {extractTopLevelText(el)} </div>
+                   
+              }
               {Array.from(el.children).map((child, index) => {
-                // if tagname is not p, span or strong, then render it
 
-                if (child instanceof HTMLElement && !['p', 'span', 'strong', 'a'].includes(child.tagName.toLowerCase())) {
-                  // if it is a div and contains raw text, then render it
-                  // TODO!!
-
-                  return <RenderElement key={index} el={child} depth={depth + 1} />;
+                if (child instanceof HTMLElement) {
+                  return <RenderElement key={index.toString() + '-' + (depth+1).toString()} el={child} depth={depth + 1} />;
                 }
-                return <> <div className="bg-dark text-muted"> {Array(depth).fill(0).map((_, index) => <span key={index}>&nbsp;&nbsp;&nbsp;&nbsp;</span>)} &nbsp;&nbsp;&nbsp;&nbsp; {child.innerHTML} </div> </>;
+                return <> </>;
+                
               })}
             </>
           )}
           {Array(depth).fill(0).map((_, index) => <span key={index}>&nbsp;&nbsp;&nbsp;&nbsp;</span>)}&nbsp;&nbsp; &lt;/{el.tagName.toLowerCase()}&gt;
               {/* White space character is: &emsp; */}
-        </>
       
     </div>
   );
-
-  /* 
-  return (
-    <div key={el.innerHTML} style={{ paddingLeft: depth * 4 }} className="border-left-0 border-primary">
-      {el.tagName === 'DIV' ? (
-        <>
-          <div onClick={toggleOpen} style={{ cursor: 'pointer' }}>
-            {isOpen ? '▼' : '►'} &lt;{el.tagName.toLowerCase()}
-            {el.id && ` id="${el.id}"`}
-            {el.className && ` class="${el.className}"`}&gt;
-          </div>
-          {isOpen && (
-            <>
-              {//elementText && <div>{elementText}</div>}
-                }
-              {Array.from(el.children).map((child, index) => {
-                if (child instanceof HTMLElement) {
-                  return <RenderElement key={index} el={child} depth={depth + 1} />;
-                }
-                return child.textContent;
-              })}
-            </>
-          )}
-          &lt;/{el.tagName.toLowerCase()}&gt;
-        </>
-      ) : (
-        <>
-          &lt;{el.tagName.toLowerCase()}
-          {el.id && ` id="${el.id}"`}
-          {el.className && ` class="${el.className}"`}&gt;
-          {//elementText && <div>{elementText}</div>}
-            }
-          {Array.from(el.children).map((child, index) => {
-            if (child instanceof HTMLElement) {
-              return <RenderElement key={index} el={child} depth={depth + 1} />;
-            }
-            return child.textContent;
-          })}
-          &lt;/{el.tagName.toLowerCase()}&gt;
-        </>
-      )}
-    </div>
-  );
-  */
 };
 
 
