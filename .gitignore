@@ -7,5 +7,4 @@ models/logs/*
 **/models/tmp/*
 logs/*
 venv
-docker-compose.yaml
-db
+db/*

@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useContext } from "react";
 import { ControlsContext, TemplatesContext } from "./Templater";
 import { colorToSectionMapping } from "./Templater";
+import { Element } from "../models/Element";
 
 interface Props {
   el: HTMLElement;
   depth: number;
-}
-
-// Eacch element could be assigned to a section, which is a template
-export interface SectionTemplate {
-  type: string; // "post-area | author | post-header | post-body"
-  tag: string;
-  id?: string;
-  classes?: string[];
 }
 
 export const RenderElement: React.FC<Props> = ({ el, depth }) => {
@@ -21,7 +14,7 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
   const [isSelected, setSelected] = useState(false);
   const [label, setLabel] = useState<string | undefined>(undefined);
   const {selectedLabel, setSelectedLabel, unrollAll, setUnrollAll} = useContext(ControlsContext);
-  const {createTemplate, setCreateTemplate, templates, addTemplate} = useContext(TemplatesContext);
+  const {createTemplate, setCreateTemplate, elements, addElement} = useContext(TemplatesContext);
 
   useEffect(() => {
     if (el.textContent)
@@ -34,13 +27,14 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
 
   useEffect(() => {
       if (createTemplate && isSelected) {
-          let newTemplate = {
+          let newElement: Element = {
               type: colorToSectionMapping[label!],
               tag: el.tagName.toLowerCase(),
-              id: el.id,
+              id: 0,
+              id_attr: el.id,
               classes: el.className.split(" ")
           };
-          addTemplate(newTemplate);
+          addElement(newElement);
       }
   }, [createTemplate]);
 

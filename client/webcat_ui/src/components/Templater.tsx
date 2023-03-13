@@ -4,13 +4,15 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
 import { useFilePicker } from 'use-file-picker';
-import { RenderElement, SectionTemplate } from './RenderElement';
+import { RenderElement } from './RenderElement';
 import { AppContext } from '..';
+import { Template } from '../models/Template';
+import { Element } from '../models/Element';
 
 
 export const colorToSectionMapping: {[key: string]: string} = {
     primary: "post-area",
-    secondary: "author",
+    secondary: "post-author",
     success: "post-header",
     // danger: "post-footer",
     warning: "post-body",
@@ -36,8 +38,8 @@ export const ControlsContext = React.createContext<ControlsContextInterface>({
 interface TemplatesContextInterface {
     createTemplate: boolean,
     setCreateTemplate: React.Dispatch<React.SetStateAction<boolean>>,
-    templates: SectionTemplate[],
-    addTemplate: (template: SectionTemplate) => void,
+    elements: Element[],
+    addElement: (template: Element) => void,
 }
 
 
@@ -45,8 +47,8 @@ interface TemplatesContextInterface {
 export const TemplatesContext = React.createContext<TemplatesContextInterface>({
     createTemplate: false,
     setCreateTemplate: () => {},
-    templates: [],
-    addTemplate: (template: SectionTemplate) => {
+    elements: [],
+    addElement: (template: Element) => {
         
     }
 });
@@ -64,13 +66,14 @@ function Templater() {
     const [selectedLabel, setSelectedLabel] = useState<string>("warning");
     const [unrollAll, setUnrollAll] =  useState<boolean>(false);
     const [createTemplate, setCreateTemplate] = useState<boolean>(false);
-    const [templates, setTemplates] = useState<SectionTemplate[]>([]);
+    const [elements, setElements] = useState<Element[]>([]);
+    const [template, setTemplate] = useState<Template>();
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
-    const addTemplate = (template: SectionTemplate) => {
+    const addElementToTemplate = (element: Element) => {
         console.log("adding template -- top of function");
-        console.log(templates);
-        templates.push(template);
-        console.log(templates);
+        console.log(elements);
+        elements.push(element);
+        console.log(elements);
         console.log("adding template -- bottom of function");
     }
     // use context to pass selectedLabel to child components
@@ -92,21 +95,21 @@ function Templater() {
       }, [filesContent]);
 
     useEffect(() => {
-    if (templates.length > 0) {
+    if (elements.length > 0) {
         // get index of last template
-        let index = templates.length - 1;
+        let index = elements.length - 1;
         // get last template
-        let lastTemplate = templates[index];
+        let lastTemplate = elements[index];
         if (lastTemplate.type === "none") {
             // if last template is of type none, remove it
-            templates.pop();
+            elements.pop();
         }
     }
-    }, [templates]);
+    }, [elements]);
 
 
       return (
-        <TemplatesContext.Provider value={{createTemplate, setCreateTemplate, templates, addTemplate: addTemplate}}>
+        <TemplatesContext.Provider value={{createTemplate, setCreateTemplate, elements, addElement: addElementToTemplate}}>
             <ControlsContext.Provider value={{selectedLabel, setSelectedLabel, unrollAll, setUnrollAll}}>
                 <h3 className='mt-3 text-light'>Template Maker</h3>
                 <Button onClick={openFileSelector} className="mt-3 w-25">Select File</Button>
@@ -148,11 +151,18 @@ function Templater() {
                 
                 <Row className="mt-3">
                     <Button onClick={() => {setCreateTemplate(true);
-                    // set timeout to wait for templates to be added and re-rendered
+                    // set timeout to wait for elements to be added and re-rendered
                     setTimeout(() => {
-                        console.log("Templates:" + templates);
-                        const newTemplates = [...templates];
-                        setTemplates(newTemplates);
+                        console.log("Templates:" + elements);
+                        const newElements = [...elements];
+                        setElements(newElements);
+                        let newTemplate: Template = {
+                            'id': 0,
+                            'creation_date': new Date().toISOString(),
+                            'origin_file': plainFiles[0].name,
+                            'elements': elements
+                        };
+                        setTemplate(newTemplate);
                         setCreateTemplate(false);
                     }, 1000);
                     
@@ -163,13 +173,13 @@ function Templater() {
                         </Button>
                     {/* Add separator 20px width */}
                     <div style={{width: "20px"}}></div>
-                    <Button variant='danger' onClick={() => {setCreateTemplate(false); setTemplates([])}} className="mt-3 w-25">Clear Templates</Button>
+                    <Button variant='danger' onClick={() => {setCreateTemplate(false); setElements([])}} className="mt-3 w-25">Clear Templates</Button>
                     <div style={{width: "20px"}}></div>
                     {/*  Send to server button */}
-                    { templates.length > 1 &&
+                    { elements.length > 1 &&
                         <Button variant='success' className="mt-3 w-25" onClick={() => {
-                            console.log("Sending templates to server");
-                            console.log(templates);
+                            console.log("Sending elements to server");
+                            console.log(elements);
          
 
                             fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates`, {
@@ -177,12 +187,7 @@ function Templater() {
                                 headers: {
                                     'Content-Type': 'application/json'
                                 },
-                                body: JSON.stringify(
-                                    {
-                                        'templates': JSON.stringify(templates)
-                                    }
-          
-                                    )
+                                body: JSON.stringify(template)
                             })
                             .then(response => response.json())
                             .then(data => {
@@ -199,19 +204,22 @@ function Templater() {
                     }
                 </Row>
 
-                {/* Display content of templates is not empty */}
+                {/* Display content of template is not empty */}
                 <Container className="bg-none text-light mt-1 mb-5 h-25 overflow-auto border-bottom border-dark">
-                    {templates.length > 0 && <h4>Templates Preview</h4>}
-                    {templates.length > 0 && templates.map((template, idx) => (
-                        <div key={'template-wrap-' + idx.toString()}>
-                            <h5>{template.type}</h5>
-                            <ul>
-                                {Object.keys(template).map((section, attr_idx) => (
-                                    <li key={`template-${idx}-${attr_idx}`}>{section}: {Object.values(template)[idx]}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
+                    { template && <h4>Template Preview</h4>}
+                    { template && <div>
+                        <h6>Template ID: {template.id}</h6>
+                        <h6>Creation Date: {template.creation_date}</h6>
+                        <h6>Origin File: {template.origin_file}</h6>
+                        <h6>Elements:</h6>
+                        <ul>
+                            {template.elements.map((element, idx) => {
+                                {/* array of string into one string with , separator */}
+                                return <li key={idx.toString()}>{element.type} (tag: {element.tag}, classes: {'[' + element.classes.join(", ") + ']'}, id: {element.id_attr})</li>
+                            })}
+
+                        </ul>
+                        </div>}
                 
                 </Container>
             </ControlsContext.Provider>

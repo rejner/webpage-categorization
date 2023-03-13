@@ -174,6 +174,72 @@ class StoredTemplatesStrategy(ParsingStrategy):
     
         return texts
 
+class DatabaseTemplatesStrategy(ParsingStrategy):
+    """
+        Parsing strategy which uses stored templates from the database to split the web page into meaningful parts.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.root_path = os.path.dirname(os.path.abspath(__file__)) + "/../../../"
+        # load templates
+        with open(self.root_path + self.templates_path, "r") as f:
+            self.stored_templates = json.load(f)
+        
+        # compile templates
+        self.compile_templates()
+
+    def compile_templates(self):
+        # compile templates
+        templates = {}
+        for segment in self.stored_templates.keys():
+            templates[segment] = {}
+            for template in self.stored_templates[segment]:
+                tag = template['tag']
+                if tag not in templates[segment].keys():
+                    templates[segment][tag] = {'classes': []}
+                classes = templates[segment][tag]['classes']
+                classes.extend(template['classes'])
+                templates[segment][tag]['classes'] = classes
+                templates[segment][tag]['classes_re'] = re.compile(r'(^|\s)(?:' + '|'.join(classes) + r')(\s|$)')
+        
+        self.templates = templates
+        # create sets of classes
+        for segment in self.templates.keys():
+            for tag in self.templates[segment].keys():
+                self.templates[segment][tag]['classes'] = list(set(self.templates[segment][tag]['classes']))
+
+    def match_segments(self, soup):
+        segments = {k: None for k in self.templates.keys()}
+        for segment in self.templates.keys():
+            for tag in self.templates[segment].keys():
+                elements = soup.find_all(tag, class_=self.templates[segment][tag]['classes_re'])
+                if len(elements) > 0:
+                    segments[segment] = elements
+                    break
+
+        return segments
+
+    def parse(self, content):
+        soup = BeautifulSoup(content, features="html.parser")
+
+        # match segments
+        segments = self.match_segments(soup)
+
+        # Find all the tags in the Beautiful Soup object
+        if segments['post-body'] is not None:
+            content_elements = segments['post-body']
+        
+        texts = []
+        for el in content_elements:
+            text = self.process_text(el.text)
+            if isinstance(text, list):
+                texts.extend(text)
+            else:
+                texts.append(text)
+    
+        return texts
+
+
 if __name__ == "__main__":
     strategy = StoredTemplatesStrategy()
     print(strategy.parse(

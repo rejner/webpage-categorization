@@ -1,16 +1,24 @@
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, request
 import json
 from os import path
+import psycopg2
 
-templates = reqparse.RequestParser()
-templates.add_argument('templates', type=str)
+from api.repository.templates import TemplatesRepository, Template, TemplateEncoder
+
+conn = psycopg2.connect(
+        host="host.docker.internal",
+        database="webcat_db",
+        user='postgres',
+        password='postgres',
+        port=5432)
 
 class WebCatTemplates(Resource):
     def __init__(self):
         super().__init__()
         # load json from file
-        self.storage_path = path.dirname(__file__) + '/../storage/templates.json'
-        self.template_storage = json.load(open(self.storage_path, 'r'))
+        # self.storage_path = path.dirname(__file__) + '/../storage/templates.json'
+        # self.template_storage = json.load(open(self.storage_path, 'r'))
+        self.repository = TemplatesRepository(conn)
 
     def verify_request(self, args):
         if args['templates'] is None or args['templates'] == "":
@@ -27,34 +35,35 @@ class WebCatTemplates(Resource):
 
     def get(self):
         # return template_storage
-        return json.dumps(self.template_storage), 200
-    
+        return json.dumps(self.repository.get_all(), cls=TemplateEncoder), 200    
 
     def post(self):
         # parse arguments in a form request
-        args = templates.parse_args()
-        # verify arguments
-        valid, msg = self.verify_request(args)
-        if not valid:
-            return {'error': msg}, 400
-        
-        # templates should be a list of objects with the following fields:
-        # - type    (str)
-        # - tag     (str)
-        # - id      (str)
-        # - classes (list)
+        # args = templates.parse_args()
+        # # verify arguments
+        # valid, msg = self.verify_request(args)
+        # if not valid:
+        #     return {'error': msg}, 400
 
-        written = False
-        for template in json.loads(args['templates']):
-            print(template)
-            if not template in self.template_storage[template['type']]:
-                print("Template not in storage, adding...")
-                self.template_storage[template['type']].append(template)
-                written = True
+        # get template object from request
+        data = request.get_json()
+        # convert to template object
+        template = Template.from_json(data)
+        print(template)
+        # # add template to storage
+        newTemplate = self.repository.create(template)
+        if newTemplate is None:
+            return {'error': "Template could not be created"}, 400
         
-        if written:
-            with open(self.storage_path, 'w') as f:
-                json.dump(self.template_storage, f)
-            
-        
+        return "Success", 200
+
+    def put(self):
+        pass
+    
+    # delete will be sent as a delete request with id in the url
+    def delete(self):
+        id = request.json['id']
+        if id is None:
+            return {'error': "No id provided"}, 400
+        self.repository.delete(id)
         return "Success", 200
