@@ -189,7 +189,9 @@ function Templater() {
                                 },
                                 body: JSON.stringify(template)
                             })
-                            .then(response => response.json())
+                            .then(response => 
+                                response.json()
+                            )
                             .then(data => {
                                 console.log('Success:', data);
                             })

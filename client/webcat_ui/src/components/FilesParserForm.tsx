@@ -47,6 +47,10 @@ function FilesParserForm() {
         })
         .then(response => response.json(), error => console.log("Error: " + error))
         .then(output => {
+            if (output.error) {
+                alert(output.error);
+                return;
+            }
             console.log('Success:', output);
             setOutput(output);
         }, error => console.log("Error: " + error)

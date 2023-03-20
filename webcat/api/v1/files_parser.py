@@ -1,5 +1,6 @@
 from flask_restful import Resource, reqparse
 from .worker import worker
+import logging
 
 files_parser = reqparse.RequestParser()
 files_parser.add_argument('hypothesis_template', type=str)
@@ -37,6 +38,7 @@ class WebCatFilesParser(Resource):
                                             'labels': args['labels'],
                                             'recursive': args['recursive']})
         except Exception as e:
+            logging.error(e.with_traceback(None))
             return {'error': str(e)}, 400
-        
+    
         return result, 200

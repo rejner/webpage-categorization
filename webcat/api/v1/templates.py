@@ -3,7 +3,7 @@ import json
 from os import path
 import psycopg2
 
-from api.repository.templates import TemplatesRepository, Template, TemplateEncoder
+from api.repositories.templates import TemplatesRepository, Template, TemplateEncoder
 
 conn = psycopg2.connect(
         host="host.docker.internal",

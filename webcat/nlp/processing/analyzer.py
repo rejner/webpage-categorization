@@ -15,10 +15,14 @@ class WebCatAnalyzer():
         self.ner_model = TweetNER7()
 
     def analyze_content(self, content, **kwargs):
-        categories = self.classify(content, **kwargs)
-        entities, text = self.perform_NER(content, **kwargs)
-        return categories, entities, text
-    
+        try:
+            categories = self.classify(content, **kwargs)
+            entities, text = self.perform_NER(content, **kwargs)
+            return categories, entities, text
+        except Exception as e:
+            print(e)
+            return None, None, None
+        
     def classify(self, inputs, **kwargs):
         inputs = self.verify_inputs(inputs)
         categories = self.classifier.classify(inputs, **kwargs)
@@ -33,7 +37,7 @@ class WebCatAnalyzer():
         if not isinstance(inputs, list):
             inputs = [inputs]
         assert len(inputs[0]) > 0, "No inputs provided"
-        assert isinstance(inputs[0], str), "Inputs must be strings"
+        assert isinstance(inputs[0], str), "Inputs must be strings (is list of {})".format(type(inputs[0]))
         return inputs
 
 

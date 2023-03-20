@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import re
 import json
 import os
+import nltk
 
 class ParsingStrategy(object):
     """
@@ -40,20 +41,36 @@ class ParsingStrategy(object):
         # Remove all the leading and trailing spaces
         text = text.strip()
 
-        if text != "":
-            # count word count in tex
-            word_count = len(text.split())
-            # if word count is more than 256, then split the text into 256 words,
-            # split text into multiple 256 blocks
-            if word_count > 256:
-                # split text into 256 words
-                text = text.split()
-                # split text into 256 words
-                text = [text[i:i+256] for i in range(0, len(text), 256)]
-                # join the text
-                text = [" ".join(t) for t in text]
+        if text == "":
+            return None
+        
+        # tokenize the text into sentences
+        sentences = nltk.sent_tokenize(text)
 
-        return text
+        # initialize variables
+        current_block = ""
+        current_word_count = 0
+        blocks = []
+
+        for sentence in sentences:
+            words = sentence.split()
+            num_words = len(words)
+
+            if current_word_count + num_words > 256:
+                # if adding the current sentence will exceed the 256-word limit,
+                # add the current block to the list of blocks and start a new block
+                blocks.append(current_block.strip())
+                current_block = ""
+                current_word_count = 0
+
+            current_block += sentence + " "
+            current_word_count += num_words
+
+        # add the last block to the list of blocks
+        if current_block.strip() != "":
+            blocks.append(current_block.strip())
+
+        return blocks
 
 class HighestChildrenFrequencyStrategy(ParsingStrategy):
     """
@@ -101,6 +118,9 @@ class HighestChildrenFrequencyStrategy(ParsingStrategy):
 
             # get text from the tag
             text = self.process_text(child.text)
+            if text is None:
+                continue
+
             if isinstance(text, list):
                 texts.extend(text)
             else:
@@ -167,99 +187,141 @@ class StoredTemplatesStrategy(ParsingStrategy):
         texts = []
         for el in content_elements:
             text = self.process_text(el.text)
-            if isinstance(text, list):
-                texts.extend(text)
-            else:
-                texts.append(text)
+            if text is None:
+                continue
+            texts.extend(text) if isinstance(text, list) else texts.append(text)
+
     
         return texts
 
-class DatabaseTemplatesStrategy(ParsingStrategy):
+class TemplatesStrategy(ParsingStrategy):
     """
         Parsing strategy which uses stored templates from the database to split the web page into meaningful parts.
     """
-    def __init__(self) -> None:
+    def __init__(self, templates) -> None:
         super().__init__()
-        self.root_path = os.path.dirname(os.path.abspath(__file__)) + "/../../../"
-        # load templates
-        with open(self.root_path + self.templates_path, "r") as f:
-            self.stored_templates = json.load(f)
-        
+        self.segment_types = ['post-body', 'post-header', 'post-author', 'post-area']
         # compile templates
-        self.compile_templates()
+        self.compiled_templates = self.compile_templates(templates)
 
-    def compile_templates(self):
-        # compile templates
-        templates = {}
-        for segment in self.stored_templates.keys():
-            templates[segment] = {}
-            for template in self.stored_templates[segment]:
-                tag = template['tag']
-                if tag not in templates[segment].keys():
-                    templates[segment][tag] = {'classes': []}
-                classes = templates[segment][tag]['classes']
-                classes.extend(template['classes'])
-                templates[segment][tag]['classes'] = classes
-                templates[segment][tag]['classes_re'] = re.compile(r'(^|\s)(?:' + '|'.join(classes) + r')(\s|$)')
-        
-        self.templates = templates
-        # create sets of classes
-        for segment in self.templates.keys():
-            for tag in self.templates[segment].keys():
-                self.templates[segment][tag]['classes'] = list(set(self.templates[segment][tag]['classes']))
+    def _construct_regex(self, items):
+        # colide lists of classes
+        if len(items) > 0 and isinstance(items[0], list):
+            items = list(set([item for sublist in items for item in sublist]))
+        else:
+            items = list(set(items))
+        return re.compile(r'(^|\s)(?:' + '|'.join(items) + r')(\s|$)')
+    
+    def compile_templates(self, templates):
+        compiled_templates = []
+        for template in templates:
+            t = {
+                'id': template.id,
+            }
+            # compile segments
+            # get all tags and classes for each segment type
+            for type in self.segment_types:
+                tags = [el.tag for el in template.elements if el.type == type]
+                classes = [el.classes for el in template.elements if el.type == type]
+                t[type] = {
+                    'tags': tags,
+                    'tags_re': self._construct_regex(tags),
+                    'classes': classes,
+                    'classes_re': self._construct_regex(classes)
+                }
+            compiled_templates.append(t)
+        return compiled_templates
 
     def match_segments(self, soup):
-        segments = {k: None for k in self.templates.keys()}
-        for segment in self.templates.keys():
-            for tag in self.templates[segment].keys():
-                elements = soup.find_all(tag, class_=self.templates[segment][tag]['classes_re'])
+        # iterate over segment types and find the first one that matches
+        # the primary template is the post-area, if none of the templates match, return None
+        segments = {k: None for k in self.segment_types}
+        candidate_templates = []
+        for template in self.compiled_templates:
+            area = template['post-area']
+            elements = soup.find_all(area['tags_re'], class_=area['classes_re'])
+            if len(elements) > 0:
+                #segments['post-area'] = elements
+                #matched_template = template
+                candidate_templates.append(template)
+                # break
+        
+        if len(candidate_templates) == 0:
+            return None
+        
+        # if there are multiple candidates, choose the one with the most matches
+        for candidate_template in candidate_templates:
+            # find the rest of the segments
+            for segment in self.segment_types:
+                template = candidate_template[segment]
+                elements = soup.find_all(template['tags_re'], class_=template['classes_re'])
                 if len(elements) > 0:
                     segments[segment] = elements
-                    break
 
+                if candidate_template[segment] is not None and segments[segment] is None:
+                    # template does not match (not enough elements), try the next one
+                    segments = {k: None for k in self.segment_types}
+                    break
+        
+        if segments['post-area'] is None:
+            return None
+        
         return segments
 
     def parse(self, content):
         soup = BeautifulSoup(content, features="html.parser")
+        # if content is not parsable return None
 
         # match segments
         segments = self.match_segments(soup)
 
         # Find all the tags in the Beautiful Soup object
-        if segments['post-body'] is not None:
-            content_elements = segments['post-body']
+        if segments is None:
+            return None
         
         texts = []
+        content_elements = segments['post-body']
         for el in content_elements:
             text = self.process_text(el.text)
-            if isinstance(text, list):
-                texts.extend(text)
-            else:
-                texts.append(text)
+            if text is None:
+                continue
+            texts.extend(text) if isinstance(text, list) else texts.append(text)
     
         return texts
 
 
 if __name__ == "__main__":
-    strategy = StoredTemplatesStrategy()
-    print(strategy.parse(
-        """
-        <html>
-            <body>
-                <div>
-                    <p>hello world</p>
-                </div>
-                <div class="post">
-                    <p>hello world</p>
-                    <div class="post-content">
-                        <p>content</p>
-                        <li class="username">
-                            <p>author</p>
-                        </li>
-                        <p>content</p>
-                    </div>
-                </div>
-            </body>
-        </html>
-        """
-        ))
+    # strategy = StoredTemplatesStrategy()
+    # print(strategy.parse(
+    #     """
+    #     <html>
+    #         <body>
+    #             <div>
+    #                 <p>hello world</p>
+    #             </div>
+    #             <div class="post">
+    #                 <p>hello world</p>
+    #                 <div class="post-content">
+    #                     <p>content</p>
+    #                     <li class="username">
+    #                         <p>author</p>
+    #                     </li>
+    #                     <p>content</p>
+    #                 </div>
+    #             </div>
+    #         </body>
+    #     </html>
+    #     """
+    #     ))
+    strategy = TemplatesStrategy()
+    # load file
+    with open("/workspaces/webpage_categorization/data/bungee54-forums/bungee54-forums/2014-11-05/viewtopic.php_id=22&p=2", "r") as f:
+        content = f.read()
+    
+    output = strategy.parse(content)
+    if output:
+        for o in output:
+            print("----------------")
+            print(o)
+            print("----------------")
+     # print(output)
