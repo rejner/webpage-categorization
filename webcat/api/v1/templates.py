@@ -1,24 +1,17 @@
 from flask_restful import Resource, reqparse, request
 import json
 from os import path
-import psycopg2
 
 from api.repositories.templates import TemplatesRepository, Template, TemplateEncoder
+from database import db
+from db_models.element import Element
+from db_models.template_element import TemplateElement
+from db_models.template import Template
 
-conn = psycopg2.connect(
-        host="host.docker.internal",
-        database="webcat_db",
-        user='postgres',
-        password='postgres',
-        port=5432)
 
 class WebCatTemplates(Resource):
     def __init__(self):
         super().__init__()
-        # load json from file
-        # self.storage_path = path.dirname(__file__) + '/../storage/templates.json'
-        # self.template_storage = json.load(open(self.storage_path, 'r'))
-        self.repository = TemplatesRepository(conn)
 
     def verify_request(self, args):
         if args['templates'] is None or args['templates'] == "":

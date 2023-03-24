@@ -2,12 +2,13 @@ from database import db
 
 class Element(db.Model):
     __tablename__ = 'elements'
+
     id = db.Column(db.Integer, primary_key=True)
     tag = db.Column(db.String(100))
     classes = db.Column(db.ARRAY(db.String))
     id_attr = db.Column(db.String(100))
     type = db.Column(db.String(100))
-    template_id = db.Column(db.Integer, db.ForeignKey('templates.id'))
+    template_id = db.Column(db.Integer, db.ForeignKey('templates.id', ondelete='CASCADE'))
 
     def __init__(self, tag: str, classes: list, id_attr: str, type: str):
         self.tag = tag

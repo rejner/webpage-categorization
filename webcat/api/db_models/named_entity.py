@@ -16,6 +16,10 @@ class EntityType(db.Model):
 
 class NamedEntity(db.Model):
     __tablename__ = 'named_entities'
+    __mapper_args__ = {
+        'confirm_deleted_rows': False
+    }
+
     id = db.Column(db.Integer, primary_key=True)
     # when content is deleted, delete all named entities associated with it
     content_id = db.Column(db.Integer, db.ForeignKey('contents.id', ondelete='CASCADE'))

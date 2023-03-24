@@ -1,5 +1,3 @@
-
-
 import sys
 from os import path
 sys.path.append(path.dirname(__file__) + "/..")
@@ -12,7 +10,7 @@ import api.api_v1 as v1
 class TestDatabases(TestCase):
 
     def create_app(self):
-        self.app, self.db = v1.create_app('config.py')
+        self.app, self.db = v1.create_app('config.py', bare=True)
         self.app.config['TESTING'] = True
         return self.app
 
@@ -56,6 +54,21 @@ class TestDatabases(TestCase):
     def add_content_entity(self, content_id: int, entity_id: int):
         content_entity = v1.ContentEntity(content_id, entity_id)
         self.db.session.add(content_entity)
+        self.db.session.commit()
+
+    def add_template(self, creation_date: str, origin_file: str):
+        template = v1.Template(creation_date, origin_file)
+        self.db.session.add(template)
+        self.db.session.commit()
+    
+    def add_element(self, tag: str, classes: list, id_attr: str, type: str):
+        element = v1.Element(tag, classes, id_attr, type)
+        self.db.session.add(element)
+        self.db.session.commit()
+    
+    def add_template_element(self, template_id: int, element_id: int):
+        template_element = v1.TemplateElement(template_id, element_id)
+        self.db.session.add(template_element)
         self.db.session.commit()
 
     def test_create_category(self):
@@ -145,6 +158,59 @@ class TestDatabases(TestCase):
         self.db.session.commit()
         entities = v1.NamedEntity.query.all()
         self.assertEqual(len(entities), 0)
+
+    def test_template(self):
+        # create a template
+        self.add_template("2020-01-01", "some_file.php")
+        # retrieve data from db
+        templates = v1.Template.query.all()
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].creation_date, "2020-01-01")
+        self.assertEqual(templates[0].origin_file, "some_file.php")
+    
+    def test_template_element(self):
+        # create a template
+        self.add_template("2020-01-01", "some_file.php")
+        elements = [
+            ("div", ["class1", "class2"], "id1", "post-area"),
+            ("div", ["class3", "class4"], "id2", "post-body"),
+            ("div", ["class5", "class6"], "id3", "post-author"),
+            ("div", ["class7", "class8"], "id4", "post-header")
+        ]
+        # create an element
+        for element in elements:
+            self.add_element(element[0], element[1], element[2], element[3])
+        # create a template-element
+        for id in range(1, 5):
+            self.add_template_element(1, id)
+        # retrieve data from db
+        template = self.db.session.get(v1.Template, 1)
+        self.assertEqual(len(template.elements), 4)
+        for id, element in enumerate(template.elements):
+            self.assertEqual(element.tag, elements[id][0])
+            self.assertEqual(element.classes, elements[id][1])
+            self.assertEqual(element.id_attr, elements[id][2])
+            self.assertEqual(element.type, elements[id][3])
+        
+    def test_template_cascade_delete(self):
+        # create a template
+        self.add_template("2020-01-01", "some_file.php")
+        elements = [
+            ("div", ["class1", "class2"], "id1", "post-area"),
+            ("div", ["class3", "class4"], "id2", "post-body"),
+        ]
+        # create an element
+        for element in elements:
+            self.add_element(element[0], element[1], element[2], element[3])
+        # delete template from db
+        template = self.db.session.get(v1.Template, 1)
+        self.db.session.delete(template)
+        self.db.session.commit()
+        # retrieve data from db
+        templates = v1.Template.query.all()
+        self.assertEqual(len(templates), 0)
+        elements = v1.TemplateElement.query.all()
+        self.assertEqual(len(elements), 0)
 
     
 
