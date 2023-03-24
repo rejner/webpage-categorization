@@ -1,5 +1,5 @@
 
-SQL_HOST = 'host.docker.internal'
+SQL_HOST = 'localhost'
 SQL_PORT = 5432
 SQL_DATABASE = 'webcat_db'
 SQL_USER = 'postgres'

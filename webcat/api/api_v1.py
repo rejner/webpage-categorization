@@ -22,11 +22,11 @@ def create_app(config_filename):
 
     from api.v1.interactive import WebCatInteractive
     from api.v1.files_parser import WebCatFilesParser
-    from api.v1.templates import WebCatTemplates
+    # from api.v1.templates import WebCatTemplates
 
     api.add_resource(WebCatInteractive, '/api/v1/webcat_interactive')
     api.add_resource(WebCatFilesParser, '/api/v1/webcat_files_parser')
-    api.add_resource(WebCatTemplates, '/api/v1/webcat_templates')
+    # api.add_resource(WebCatTemplates, '/api/v1/webcat_templates')
 
     return app, db
 
