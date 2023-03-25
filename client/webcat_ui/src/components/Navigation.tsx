@@ -21,6 +21,7 @@ export const Navigation = () => {
                         <Nav.Link href="/files_parser">Files Parser</Nav.Link>
                         <Nav.Link href="/template_maker">Template Maker</Nav.Link>
                         <Nav.Link href="/template_manager">Template Manager</Nav.Link>
+                        <Nav.Link href="/data_viewer">Data Viewer</Nav.Link>
                     </Nav>
                 </Navbar.Collapse>
             </Container>

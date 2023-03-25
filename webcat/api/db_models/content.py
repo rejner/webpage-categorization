@@ -24,7 +24,7 @@ class Content(db.Model):
     def json_serialize(self):
         return {
             'id': self.id,
-            'file_id': self.file_id.json_serialize(),
+            'file_id': self.file_id,
             'text': self.text,
             'categories': [c.json_serialize() for c in self.categories],
             'entities': [e.json_serialize() for e in self.entities]

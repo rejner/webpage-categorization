@@ -9,13 +9,11 @@ import FilesParser from "./pages/FilesParser";
 import TemplateMaker from "./pages/TemplateMaker";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import TemplateManagerPage from './pages/TemplateManagerPage';
-
-{/* Create context for storing server IP and other configuration stuff */}
+import DataViewer from './pages/DataViewerPage';
 
 export const AppContext = React.createContext({'server_ip': '127.0.0.1',
                                                'server_port': '5000',
                                                'server_api': '/api/v1'});
-
 
 export default function App() {
   return (
@@ -28,6 +26,7 @@ export default function App() {
                 <Route path="files_parser" element={<FilesParser />} />
                 <Route path="template_maker" element={<TemplateMaker />} />
                 <Route path="template_manager" element={<TemplateManagerPage />} />
+                <Route path="data_viewer" element={<DataViewer />} />
               </Route>
             </Routes>
       </BrowserRouter>
@@ -38,6 +37,7 @@ export default function App() {
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
+  // TODO: Renders the App twice in development mode
   <React.StrictMode>
     <App />
   </React.StrictMode>

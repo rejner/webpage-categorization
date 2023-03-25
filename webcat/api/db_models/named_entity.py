@@ -5,7 +5,6 @@ class EntityType(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     tag = db.Column(db.String(100))
-    # entities = db.relationship('NamedEntity', backref='entity_types', lazy=True)
 
     def __init__(self, name: str, tag: str):
         self.name = name

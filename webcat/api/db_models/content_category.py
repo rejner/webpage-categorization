@@ -16,3 +16,11 @@ class ContentCategory(db.Model):
     def __repr__(self):
         return f"ContentCategory(id={self.id}, content_id={self.content_id}, category_id={self.category_id}, confidence={self.confidence}, category={self.category})"
 
+    def json_serialize(self):
+        return {
+            'id': self.id,
+            'content_id': self.content_id,
+            'category_id': self.category_id,
+            'confidence': self.confidence,
+            'category': self.category.json_serialize()
+        }
