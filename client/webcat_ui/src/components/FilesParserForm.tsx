@@ -2,22 +2,14 @@ import React from 'react';
 import { Stack, Container, Button, Form, Row, Col } from 'react-bootstrap';
 import { useFilePicker, Validator } from 'use-file-picker';
 import { AppContext } from '../index';
-
-// interface for incoming objects
-interface Output {
-    // object of string - float pairs
-    "categories": { [key: string]: number },
-    "text": string,
-    "entities": string[],
-    "file": string,
-}
+import {Content, entity_color_mapping} from '../models/Content';
 
 function FilesParserForm() {
     const [hypothesisTemplate, setHypothesisTemplate] = React.useState("This example is about {}.");
     const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency,delivery");
     const [path, setPath] = React.useState("");
     const [useRecursive, setUseRecursive] = React.useState(false);
-    const [output, setOutput] = React.useState() as [[Output], any];
+    const [content, setContent] = React.useState() as [[Content], any];
     const [openFileSelector, { filesContent, loading, errors, plainFiles, clear }] = useFilePicker({
         multiple: false,
         readAs: 'DataURL',
@@ -46,13 +38,20 @@ function FilesParserForm() {
             body: JSON.stringify(requestBody)
         })
         .then(response => response.json(), error => console.log("Error: " + error))
-        .then(output => {
-            if (output.error) {
-                alert(output.error);
+        .then(content => {
+            if (content.error) {
+                alert(content.error);
                 return;
             }
-            console.log('Success:', output);
-            setOutput(output);
+            console.log('Success:', content);
+            // console.log('Success:', content);
+            for (let c of content) {
+                for (let entity of c.entities) {
+                    // replace entity with <span> tag
+                    c.text = c.text.replace(entity.name, `<span class='${entity_color_mapping[entity.type.name]} text-light p-1 rounded'>${entity.name}</span>`);
+                }
+            }
+            setContent(content);
         }, error => console.log("Error: " + error)
         )
     }
@@ -101,8 +100,8 @@ function FilesParserForm() {
                 </Form>
 
                 {
-                    output &&
-                    output.map((item) => {
+                    content &&
+                    content.map((item) => {
                         return (
                             <Container className='text-light mb-3 mt-3'>
                                 {/*an empty separator line*/}

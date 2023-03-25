@@ -1,6 +1,9 @@
 from flask_restful import Resource, reqparse
-from .worker import worker
+# from .worker import worker
+from .worker import WebCatWorker
 import logging
+from database import db
+from models_extension import *
 
 files_parser = reqparse.RequestParser()
 files_parser.add_argument('hypothesis_template', type=str)
@@ -9,6 +12,9 @@ files_parser.add_argument('path', type=str)
 files_parser.add_argument('recursive', type=bool)
 
 class WebCatFilesParser(Resource):
+    def __init__(self):
+        super().__init__()
+        self.worker = WebCatWorker(db)
 
     def verify_request(self, args):
         if args['hypothesis_template'] is None or args['hypothesis_template'] == "":
@@ -33,7 +39,7 @@ class WebCatFilesParser(Resource):
             return {'error': msg}, 400
 
         try:
-            result = worker.process_files(args['path'], 
+            result = self.worker.process_files(args['path'], 
                                         **{'hypothesis_template': args['hypothesis_template'], 
                                             'labels': args['labels'],
                                             'recursive': args['recursive']})

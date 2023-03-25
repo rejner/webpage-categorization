@@ -1,52 +1,35 @@
 from flask_restful import Resource, reqparse, request
 import json
 from os import path
-
-from api.repositories.templates import TemplatesRepository, Template, TemplateEncoder
 from database import db
-from db_models.element import Element
-from db_models.template_element import TemplateElement
-from db_models.template import Template
-
+from models_extension import *
 
 class WebCatTemplates(Resource):
     def __init__(self):
         super().__init__()
 
-    def verify_request(self, args):
-        if args['templates'] is None or args['templates'] == "":
-            return False, "No template provided"
-        try:
-            templates_list = json.loads(args['templates'])
-        except Exception as e:
-            return False, "Invalid template format"
-        
-        if not isinstance(templates_list, list):
-            return False, "Invalid template format"
-
-        return True, ""
-
     def get(self):
         # return template_storage
-        return json.dumps(self.repository.get_all(), cls=TemplateEncoder), 200    
+        templates = db.session.query(Template).all()
+        templates = [template.json_serialize() for template in templates]
+        res = json.dumps(templates)
+        return res, 200 
 
     def post(self):
-        # parse arguments in a form request
-        # args = templates.parse_args()
-        # # verify arguments
-        # valid, msg = self.verify_request(args)
-        # if not valid:
-        #     return {'error': msg}, 400
+        try:
+            # get template object from request
+            data = request.get_json()
+            newTemplate = Template(data['creation_date'], data['origin_file'])
+            newElements = []
+            for element in data['elements']:
+                newElements.append(Element(element['tag'], element['classes'], element['id_attr'], element['type']))
+            newTemplate.elements = newElements
 
-        # get template object from request
-        data = request.get_json()
-        # convert to template object
-        template = Template.from_json(data)
-        print(template)
-        # # add template to storage
-        newTemplate = self.repository.create(template)
-        if newTemplate is None:
-            return {'error': "Template could not be created"}, 400
+            db.session.add(newTemplate)
+            db.session.commit()
+
+        except Exception as e:
+            return {'error': str(e)}, 400
         
         return "Success", 200
 
@@ -58,5 +41,11 @@ class WebCatTemplates(Resource):
         id = request.json['id']
         if id is None:
             return {'error': "No id provided"}, 400
-        self.repository.delete(id)
+        try:
+            template = db.session.query(Template).get(id)
+            db.session.delete(template)
+            db.session.commit()
+        except Exception as e:
+            return {'error': str(e)}, 400
+        
         return "Success", 200

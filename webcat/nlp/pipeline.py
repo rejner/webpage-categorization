@@ -1,11 +1,11 @@
 import sys
+import os
 from os import path
-sys.path.append(path.dirname(__file__))
-sys.path.append(path.dirname(__file__) + "/.." + "/..")
-from processing.parser import WebCatParser
-from processing.analyzer import WebCatAnalyzer
-import webcat.api.repositories.templates as t
-import psycopg2
+#sys.path.append(path.dirname(__file__))
+#sys.path.append(path.dirname(__file__) + "/.." + "/..")
+from .processing.parser import WebCatParser
+from .processing.analyzer import WebCatAnalyzer
+from api.models_extension import Template, Content, File, NamedEntity, EntityType, Category, ContentCategory
 import timeit 
 import multiprocessing as mp
 import logging
@@ -98,13 +98,8 @@ def consumer_analyzer(queue, results_queue, lock, **kwargs):
     exit(0)
 
 class WebCatPipeline():
-    def __init__(self):
-        self.conn = psycopg2.connect(
-            host="host.docker.internal",
-            database="webcat_db",
-            user='postgres',
-            password='postgres',
-            port=5432)
+    def __init__(self, db):
+        self.db = db
         templates = self.fetch_templates()
         self.parser = WebCatParser(templates)
         self.analyzer = WebCatAnalyzer()
@@ -113,12 +108,49 @@ class WebCatPipeline():
         self.queue = mp.Queue(maxsize=self.max_queue_size)
 
     def fetch_templates(self):
-        self.templates_repo = t.TemplatesRepository(self.conn)
-        templates = self.templates_repo.get_all()
+        # with 
+        templates = self.db.session.query(Template).all()
         return templates
+
+    def load_categories(self, labels):
+        labels_to_ids = {}
+        # try to retrieve ids from the database, if some labels are not found, create them
+        # also create a mapping from labels to ids
+        categories = []
+        for label in labels:
+            category = self.db.session.query(Category).filter(Category.name == label).first()
+            if not category:
+                category = Category(name=label)
+                self.db.session.add(category)
+                self.db.session.commit()
+            categories.append(category)
+            labels_to_ids[label] = category.id
+
+        self.labels_to_ids = labels_to_ids
+
+    def load_entity_types(self):
+        types_supported = self.analyzer.ner_model.get_entity_types()
+        types_to_ids = {}
+        # try to retrieve ids from the database, if some labels are not found, create them
+        # also create a mapping from labels to ids
+        entity_types = []
+        for type in types_supported:
+            entity_type = self.db.session.query(EntityType).filter(EntityType.name == type).first()
+            if not entity_type:
+                entity_type = EntityType(name=type, tag=None)
+                self.db.session.add(entity_type)
+                self.db.session.commit()
+            entity_types.append(entity_type)
+            types_to_ids[type] = entity_type.id
+
+        self.types_to_ids = types_to_ids
+
 
     def process_files(self, files_path:list, **kwargs):
         batch_size = kwargs.get("batch_size", self.batch_size) if "batch_size" in kwargs else self.batch_size
+        labels = kwargs["labels"] if "labels" in kwargs else None
+        self.load_categories(labels)
+        self.load_entity_types()
         contents = self.parser.parse_files(files_path)
         contents = [content for content in contents if content]
         # from (file_path, content (list of strings)) create a (file_path, content (string)) for each entry in contents
@@ -142,12 +174,16 @@ class WebCatPipeline():
             categories, entities, text = self.analyzer.analyze_content(inputs, **kwargs)
             if categories and entities and text: 
                 for i in range(len(batch)):
+                    content = self.save_content_to_db(str(int_to_path[batch[i][0]]), categories[i], entities[i], text[i])
+                    cat_names = [category.category.name for category in content.categories]
+                    cat_confs = [category.confidence for category in content.categories]
+                    # create a dictionary of the categories and their confidence
+                    cats = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
                     objects.append({
                         "file": str(int_to_path[batch[i][0]]),
-                        "categories": categories[i],
-                        "entities": entities[i],
+                        "categories": cats,
+                        "entities": [entity.json_serialize() for entity in content.entities],
                         "text": text[i],
-                        "raw_input": inputs[i]
                     })
 
             try:
@@ -199,15 +235,62 @@ class WebCatPipeline():
         print(len(results))
         return results
 
-
     def process_raw_text(self, text, **kwargs):
+        labels = kwargs["labels"] if "labels" in kwargs else None
+        self.load_categories(labels)
+        self.load_entity_types()
         categories, entities, text = self.analyzer.analyze_content([text], **kwargs)
+        try:
+            # create new content entry in the database
+            content = Content(1, text[0])
+            content_categories = [ContentCategory(content.id, self.labels_to_ids[label], conf) for label, conf in categories[0].items()]
+            content.categories = content_categories
+            entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities[0]]
+            content.entities = entities
+            self.db.session.add(content)
+            self.db.session.commit()
+
+            # # get the id of the content
+            # content_id = content.id
+            # # fetch the content from the database
+            # content = self.db.session.query(Content).filter(Content.id == content_id).first()
+            # print(content)
+
+        except Exception as e:
+            print(e)
+            self.db.session.rollback()
+            raise e
+        
+        cat_names = [category.category.name for category in content.categories]
+        cat_confs = [category.confidence for category in content.categories]
+        # create a dictionary of the categories and their confidence
+        categories = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
         return {
-            "categories": categories[0],
-            "entities": entities[0],
+            "categories": categories,
+            "entities": [entity.json_serialize() for entity in entities],
             "text": text[0]
         }
     
+    def save_content_to_db(self, file_path, categories, entities, text):
+        # try to retrieve file from the database
+        file = self.db.session.query(File).filter(File.path == file_path).first()
+        if not file:
+            # create new file entry in the database
+            filename = os.path.basename(file_path)
+            file = File(filename, file_path)
+            self.db.session.add(file)
+            self.db.session.commit()
+
+        # create new content entry in the database
+        content = Content(file.id, text)
+        content_categories = [ContentCategory(content.id, self.labels_to_ids[label], conf) for label, conf in categories.items()]
+        content.categories = content_categories
+        entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities]
+        content.entities = entities
+        self.db.session.add(content)
+        self.db.session.commit()
+        return content
+
 if __name__ == "__main__":
     pipeline = WebCatPipeline()
     import os

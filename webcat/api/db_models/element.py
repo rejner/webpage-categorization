@@ -8,7 +8,7 @@ class Element(db.Model):
     classes = db.Column(db.ARRAY(db.String))
     id_attr = db.Column(db.String(100))
     type = db.Column(db.String(100))
-    template_id = db.Column(db.Integer, db.ForeignKey('templates.id', ondelete='CASCADE'))
+    # template_id = db.Column(db.Integer, db.ForeignKey('templates.id', ondelete='CASCADE'))
 
     def __init__(self, tag: str, classes: list, id_attr: str, type: str):
         self.tag = tag
@@ -18,3 +18,12 @@ class Element(db.Model):
 
     def __repr__(self):
         return f"Element(id={self.id}, tag={self.tag}, classes={self.classes}, id_attr={self.id_attr}, type={self.type})"
+
+    def json_serialize(self):
+        return {
+            'id': self.id,
+            'tag': self.tag,
+            'classes': self.classes,
+            'id_attr': self.id_attr,
+            'type': self.type
+        }

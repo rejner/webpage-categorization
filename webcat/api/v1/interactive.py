@@ -1,6 +1,9 @@
 from flask_restful import Resource, reqparse
-from .worker import worker
-# from worker import WebCatWorker
+from flask import current_app
+# from .worker import worker
+from database import db
+from models_extension import *
+from .worker import WebCatWorker
 
 # Requests for processing will have path to files, hypothesis template, labels and recursive flag + text
 interactive_parser = reqparse.RequestParser()
@@ -9,6 +12,9 @@ interactive_parser.add_argument('labels', type=str, action='append')
 interactive_parser.add_argument('input', type=str)
 
 class WebCatInteractive(Resource):
+    def __init__(self):
+        super().__init__()
+        self.worker = WebCatWorker(db)
 
     def verify_interactive_request(self, args):
         if args['hypothesis_template'] is None or args['hypothesis_template'] == "":
@@ -30,9 +36,8 @@ class WebCatInteractive(Resource):
         if not valid:
             return {'error': msg}, 400
 
-        
-        result = worker.process_raw_text(args['input'], 
-                                                   **{'hypothesis_template': args['hypothesis_template'], 
-                                                    'labels': args['labels'],})
+        result = self.worker.process_raw_text(args['input'], 
+                                                    **{'hypothesis_template': args['hypothesis_template'], 
+                                                        'labels': args['labels'],})
         
         return result, 200

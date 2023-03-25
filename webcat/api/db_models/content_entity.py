@@ -3,8 +3,8 @@ from database import db
 class ContentEntity(db.Model):
     __tablename__ = 'content_entities'
     id = db.Column(db.Integer, primary_key=True)
-    content_id = db.Column(db.Integer, db.ForeignKey('contents.id'))
-    entity_id = db.Column(db.Integer, db.ForeignKey('named_entities.id'))
+    content_id = db.Column(db.Integer, db.ForeignKey('contents.id', ondelete='CASCADE'))
+    entity_id = db.Column(db.Integer, db.ForeignKey('named_entities.id', ondelete='CASCADE'))
 
     def __init__(self, content_id: int, entity_id: int):
         self.content_id = content_id

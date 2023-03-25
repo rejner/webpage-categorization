@@ -2,15 +2,6 @@
 # A React frontend will use this API to communicate with the worker
 from flask import Flask
 from flask_restful import Api
-from db_models.category import Category
-from db_models.content import Content
-from db_models.file import File
-from db_models.named_entity import NamedEntity, EntityType
-from db_models.content_category import ContentCategory
-from db_models.content_entity import ContentEntity
-from db_models.template import Template
-from db_models.template_element import TemplateElement
-from db_models.element import Element
 
 from database import db
 # enable CORS for localhost
@@ -32,6 +23,9 @@ def create_app(config_filename, bare=False):
         api.add_resource(WebCatInteractive, '/api/v1/webcat_interactive')
         api.add_resource(WebCatFilesParser, '/api/v1/webcat_files_parser')
         api.add_resource(WebCatTemplates, '/api/v1/webcat_templates')
+    
+    with app.app_context():
+        db.create_all()
 
     return app, db
 

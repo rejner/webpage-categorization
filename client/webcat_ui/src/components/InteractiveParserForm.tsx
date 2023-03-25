@@ -2,6 +2,8 @@ import React from 'react';
 import { Stack, Container, Button, Form, Row, Col, Card } from 'react-bootstrap';
 import { useFilePicker, Validator } from 'use-file-picker';
 import { AppContext } from '../index';
+import { Content, entity_color_mapping } from '../models/Content';
+
 
 
 function InteractiveParserForm() {
@@ -43,6 +45,11 @@ function InteractiveParserForm() {
             if (data.error) {
                 alert(data.error)
             } else {
+                let content: Content = data;
+                for (let entity of content.entities) {
+                    // replace entity with <span> tag
+                    data.text = data.text.replace(entity.name, `<span class='${entity_color_mapping[entity.type.name]} text-light p-1 rounded'>${entity.name}</span>`);
+                }
                 setCategories(data.categories);
                 setText(data.text);
             }

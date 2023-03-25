@@ -3,8 +3,9 @@ import os
 import logging
 
 class WebCatWorker():
-    def __init__(self):
+    def __init__(self, db):
         self.pipeline = None
+        self.db = db
     
     def create_files_list(self, path:str, **kwargs):
         logging.info("Creating files list from path: {}".format(path))
@@ -36,16 +37,16 @@ class WebCatWorker():
 
     def process_files(self, files_path:list, **kwargs):
         if self.pipeline is None:
-            self.pipeline = WebCatPipeline()
+            self.pipeline = WebCatPipeline(self.db)
         file_paths = self.create_files_list(files_path, **kwargs)
         return self.pipeline.process_files(file_paths, **kwargs)
  
     def process_raw_text(self, text: str, **kwargs):
         if self.pipeline is None:
-            self.pipeline = WebCatPipeline()
+            self.pipeline = WebCatPipeline(self.db)
         return self.pipeline.process_raw_text(text, **kwargs)
 
-worker = WebCatWorker()
+# worker = WebCatWorker()
 
 if __name__ == "__main__":
     worker = WebCatWorker()

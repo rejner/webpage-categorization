@@ -11,3 +11,9 @@ class Category(db.Model):
     def __repr__(self):
         return f"Category(id={self.id}, name={self.name})"
     
+    def json_serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name
+        }
+    
