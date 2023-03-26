@@ -46,9 +46,10 @@ function InteractiveParserForm() {
                 alert(data.error)
             } else {
                 let content: Content = data;
-                for (let entity of content.entities) {
+                let entities: any = content.entities;
+                for (let entity of entities) {
                     // replace entity with <span> tag
-                    data.text = data.text.replace(entity.name, `<span class='${entity_color_mapping[entity.type.name]} text-light p-1 rounded'>${entity.name}</span>`);
+                    data.text = data.text.replace(entity.name, `<span class='${entity_color_mapping[entity.type]} text-light p-1 rounded'>${entity.name}</span>`);
                 }
                 setCategories(data.categories);
                 setText(data.text);

@@ -271,26 +271,10 @@ class WebCatPipeline():
         self.load_categories(labels)
         self.load_entity_types()
         categories, entities, text = self.analyzer.analyze_content([text], **kwargs)
-        try:
-            # create new content entry in the database
-            content = Content(1, text[0])
-            content_categories = [ContentCategory(content.id, self.labels_to_ids[label], conf) for label, conf in categories[0].items()]
-            content.categories = content_categories
-            entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities[0]]
-            content.entities = entities
-
-        except Exception as e:
-            print(e)
-            self.db.session.rollback()
-            raise e
-        
-        cat_names = [category.category.name for category in content.categories]
-        cat_confs = [category.confidence for category in content.categories]
-        # create a dictionary of the categories and their confidence
-        categories = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
+        entities = [{'id': 0, 'name': entity[0], 'type': entity[1], 'type_id': self.types_to_ids[entity[1]]} for entity in entities[0]]
         return {
-            "categories": categories,
-            "entities": [entity.json_serialize() for entity in entities],
+            "categories": categories[0],
+            "entities": entities,
             "text": text[0]
         }
     
