@@ -11,7 +11,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import TemplateManagerPage from './pages/TemplateManagerPage';
 import DataViewer from './pages/DataViewerPage';
 
-export const AppContext = React.createContext({'server_ip': '127.0.0.1',
+export var AppContext = React.createContext({'server_ip': '127.0.0.1',
                                                'server_port': '5000',
                                                'server_api': '/api/v1'});
 

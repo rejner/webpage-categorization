@@ -26,6 +26,11 @@ def create_app(config_filename, bare=False):
         api.add_resource(WebCatTemplates, '/api/v1/webcat_templates')
         api.add_resource(WebCatDataProvider, '/api/v1/webcat_data_provider')
     
+    # define ping route
+    @app.route('/api/v1/ping')
+    def ping():
+        return {'message': 'pong'}
+
     with app.app_context():
         db.create_all()
 

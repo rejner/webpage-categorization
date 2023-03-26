@@ -104,16 +104,40 @@ function DataViewer() {
                 let entity_type = classes[1];
                 
                 if (!filter.entity_types.includes(entity_type)) {
-                    entity.style.display = 'none';
+                    // mute the entity but keep visible
+                    entity.style.opacity = '0.2';
+                    // set alpha of background color to 0
+                    
                 } else {
-                    entity.style.display = 'inline';
+                    // entity.style.display = 'inline';
+                    entity.style.opacity = '1';
+
                 }
                 
-
             }
 
         }
     }, [filter]);
+
+    function delete_content(id: number) {
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_data_provider`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({id: id})
+        })
+        .then(response => response.json(), error => console.log("Error: " + error))
+        .then(data => {
+            console.log('Success:', data);
+            if (data.error) {
+                alert(data.error)
+                return;
+            }
+            request_content();
+        }, error => console.log("Error: " + error)
+        )
+    }
 
 
 
@@ -215,7 +239,18 @@ function DataViewer() {
                                 {/*an empty separator line*/}
                                 <div className='border rounded text-light mb-5'></div>
                                 {/* filename */}
-                                <Container className='text-light mb-3'> <h3>Path to file:</h3><div className='text-light mt-3'/>{item.file}</Container>
+                                <Row>
+                                    <Col>
+                                        <Container className='text-light mb-3'> <h3>Path to file:</h3><div className='text-light mt-3'/>{item.file}</Container>
+                                    </Col>
+                                    {/* Delete button, column only of button size pushing it most to the right */}
+                                    <Col xs='auto'>
+                                        <Button className="mt-3" variant="danger" onClick={() => {
+                                            delete_content(item.id);
+                                        }}>Delete</Button>
+                                    </Col>
+                                </Row>
+                                
                                 <Container className='text-light mb-3'> <h3 className='mb-3'>Categories:</h3> {
                                 Object.keys(item.categories).map((key) => {
                                     var score = item.categories[key];

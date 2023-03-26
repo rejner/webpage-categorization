@@ -12,6 +12,16 @@ export const Navigation = () => {
     return (
         <Navbar bg="dark" variant="dark" expand="lg">
             <Container>
+                {/* logo image */}
+                <Navbar.Brand href="/">
+                    <img
+                        src="./assets/webcat_logo_smaller.png"
+                        width="30"
+                        height="30"
+                        className="d-inline-block align-top"
+                        alt="WebCat logo"
+                    />
+                </Navbar.Brand>
                 <Navbar.Brand href="/" className='text-light'>WebCat</Navbar.Brand>
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">

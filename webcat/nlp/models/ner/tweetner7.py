@@ -59,8 +59,6 @@ class TweetNER7():
         Also store the entity type.
         """
         entities = []
-        print(texts)
-        print(res)
         for i in range(len(res)):
             entities.append([])
             entity = ""

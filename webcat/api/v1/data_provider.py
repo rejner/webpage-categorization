@@ -1,4 +1,4 @@
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, request
 from database import db
 from models_extension import *
 
@@ -43,10 +43,8 @@ class WebCatDataProvider(Resource):
         
         # create query for each filter and combine them with AND
         if categories:
-            print("some")
             category_query = db.session.query(Content).filter(Content.categories.any(ContentCategory.category.has(Category.name.in_(categories))))
         else:
-            print("all")
             category_query = db.session.query(Content).filter(Content.categories.any())
 
         if entity_types:
@@ -84,6 +82,7 @@ class WebCatDataProvider(Resource):
             self.file_cache[content.file_id] = file
 
         return {
+            "id": content.id,
             'file': file.path,
             "categories": categories,
             "entities": [entity.json_serialize() for entity in content.entities],
@@ -102,3 +101,17 @@ class WebCatDataProvider(Resource):
         args = self.parser.parse_args()
         filtered_data = self.process_request(args)
         return [self.serialize_content(content) for content in filtered_data]
+
+    # delete will be sent as a delete request with id in the url
+    def delete(self):
+        id = request.json['id']
+        if id is None:
+            return {'error': "No id provided"}, 400
+        try:
+            content = db.session.query(Content).get(id)
+            db.session.delete(content)
+            db.session.commit()
+        except Exception as e:
+            return {'error': str(e)}, 400
+        
+        return "Success", 200

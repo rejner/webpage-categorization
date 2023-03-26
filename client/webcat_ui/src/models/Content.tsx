@@ -4,7 +4,8 @@ export interface Content {
     'categories': { [key: string]: number };
     'entities': Entity[],
     'text': string,
-    'file': string | undefined
+    'file': string | undefined,
+    'id': number,
 }
 
 export interface Entity {
