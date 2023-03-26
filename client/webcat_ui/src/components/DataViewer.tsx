@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stack, Container, Button, Form, Row, Col } from 'react-bootstrap';
+import { Stack, Container, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
 import { AppContext } from '../index';
 import {Content, entity_color_mapping} from '../models/Content';
 
@@ -22,6 +22,7 @@ function DataViewer() {
     const [categories, setCategories] = React.useState() as [string[], (categories: string[]) => void];
     const [entity_types, setEntityTypes] = React.useState() as [string[], (entity_types: string[]) => void];
     const [content, setContent] = React.useState() as [Content[], (content: Content[]) => void];
+    const [isLoading , setIsLoading] = React.useState(false);
     const [filter, setFilter] = React.useState<WebCatFilters>({
         categories: ['all'],
         cat_threshold: 0.0,
@@ -67,6 +68,7 @@ function DataViewer() {
     }, []);
 
     function request_content() {
+        setIsLoading(true);
         fetch(`http://${server_ip}:${server_port}${server_api}/webcat_data_provider`, {
             method: 'POST',
             headers: {
@@ -94,6 +96,7 @@ function DataViewer() {
             setContent(data);
         }, error => console.log("Error: " + error)
         )
+        .finally(() => setIsLoading(false));
     }
 
     // filter useeffect
@@ -231,6 +234,12 @@ function DataViewer() {
                             request_content();
                         }}>Request Data</Button>
                     </Col>
+                    {isLoading &&
+                        <Col>
+                            <Spinner animation="border" role="status" className='mt-3'>
+                            </Spinner>
+                        </Col>
+                    }
                 </Row>
             </Container>
             {/* Show length of content */}
