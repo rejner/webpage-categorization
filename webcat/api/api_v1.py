@@ -37,7 +37,12 @@ def create_app(config_filename, bare=False):
     return app, db
 
 if __name__ == '__main__':
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     app, _ = create_app('config.py')
+    # set module
+    
     app.run(debug=True)
     
 

@@ -68,6 +68,10 @@ function Home() {
         alt="logo"
         style={{width: '200px'}}
       />
+      <div className='mb-5'>
+        <h1>WebCat</h1>
+        <h4>Webpage Categorization and Analysis Tool</h4>
+      </div>
         <Form onSubmit={(e) => {e.preventDefault();
                                 reConnect();}
         }>
@@ -113,7 +117,7 @@ function UpDownIndicator(props: any) {
     <div className="mt-3">
         <div style={indicatorStyle}></div>
         <div>
-          <small className="text-muted"> {props.serverUp ? "(online)" : "(offline)"} </small>
+          <small className="text-muted"> {props.serverUp ? "(connected)" : "(offline)"} </small>
         </div>
         
     </div>

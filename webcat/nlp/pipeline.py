@@ -106,6 +106,7 @@ class WebCatPipeline():
         self.batch_size = 16
         self.max_queue_size = 1000
         self.queue = mp.Queue(maxsize=self.max_queue_size)
+        logging.info(f"Initialized pipeline.")
 
     def fetch_templates(self):
         # with 
@@ -153,44 +154,74 @@ class WebCatPipeline():
         self.load_entity_types()
         contents = self.parser.parse_files(files_path)
         contents = [content for content in contents if content]
-        # from (file_path, content (list of strings)) create a (file_path, content (string)) for each entry in contents
-        # [(file_path, text), (file_path, text), ...]
+        if len(contents) == 0 or contents == None:
+            return [], {"total": 0,"processed": 0,"errors": 0,"duplicate": 0}
+
+        # from (file_path, content (list of strings), hashes (list of hashes)) create a (file_path, content (string), hash) for each entry in contents
+        # [(file_path, text, hash), (file_path, text, hash), ...]
         # create integer to path mapping to save memory when flattening the list and creating path-text pairs
         int_to_path = {i: file_path for i, (file_path, _) in enumerate(contents)}
         # invert the mapping to create a path to integer mapping
         path_to_int = {v: k for k, v in int_to_path.items()}
 
-        contents = [(path_to_int[file_path], text) for file_path, content in contents for text in content]
-        # create iterator for the contents
-        contents_iter = iter(contents)
+        # flatten the list of contents
+        contents = [(path_to_int[file_path], text, hash) for file_path, content in contents for text, hash in zip(*content)]
 
-        batch = contents
-        if len(contents) > batch_size:
+        # filter any hashes that are already in the database
+        hashes = [hash for _, _, hash in contents]
+        hashes_in_db = self.db.session.query(Content.hash).filter(Content.hash.in_(hashes)).all()
+        hashes_in_db = [hash[0] for hash in hashes_in_db]
+        contents_filtered = [content for content in contents if content[2] not in hashes_in_db]
+
+
+        # create iterator for the contents
+        contents_iter = iter(contents_filtered)
+
+        batch = contents_filtered
+        if len(contents_filtered) > batch_size:
             batch = [next(contents_iter) for _ in range(batch_size)]
         
         objects = []
+        stats = {
+            "total": len(contents),
+            "processed": 0,
+            "duplicate": len(contents) - len(contents_filtered),
+            "error": 0
+        }
         while batch:
-            inputs = [content for _, content in batch]
+            inputs = [content for _, content, _ in batch if content]
+            if len(inputs) == 0:
+                break
+
             categories, entities, text = self.analyzer.analyze_content(inputs, **kwargs)
             if categories and entities and text: 
-                for i in range(len(batch)):
-                    content = self.save_content_to_db(str(int_to_path[batch[i][0]]), categories[i], entities[i], text[i])
+                for i in range(len(inputs)):
+                    hash = batch[i][2]
+                    content = self.save_content_to_db(str(int_to_path[batch[i][0]]), categories[i], entities[i], text[i], hash)
+                    if content == None:
+                        stats["error"] += 1
+                        continue
                     cat_names = [category.category.name for category in content.categories]
                     cat_confs = [category.confidence for category in content.categories]
                     # create a dictionary of the categories and their confidence
                     cats = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
                     objects.append({
+                        "hash": hash,
                         "file": str(int_to_path[batch[i][0]]),
                         "categories": cats,
                         "entities": [entity.json_serialize() for entity in content.entities],
                         "text": text[i],
                     })
+                    stats["processed"] += 1
+                
+            if len(inputs) < batch_size:
+                break
+                
+            # construct the next batch, if there are no more items, then the batch will be empty
+            batch = [next(contents_iter, (None, None, None)) for _ in range(batch_size)]
 
-            try:
-                batch = [next(contents_iter) for _ in range(batch_size)]
-            except StopIteration:
-                batch = False
-        return objects
+
+        return objects, stats
     
     def process_files_parallel(self, files_path:list, **kwargs):
         # spawn a new process, which takes all file paths
@@ -247,14 +278,6 @@ class WebCatPipeline():
             content.categories = content_categories
             entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities[0]]
             content.entities = entities
-            self.db.session.add(content)
-            self.db.session.commit()
-
-            # # get the id of the content
-            # content_id = content.id
-            # # fetch the content from the database
-            # content = self.db.session.query(Content).filter(Content.id == content_id).first()
-            # print(content)
 
         except Exception as e:
             print(e)
@@ -271,119 +294,29 @@ class WebCatPipeline():
             "text": text[0]
         }
     
-    def save_content_to_db(self, file_path, categories, entities, text):
-        # try to retrieve file from the database
-        file = self.db.session.query(File).filter(File.path == file_path).first()
-        if not file:
-            # create new file entry in the database
-            filename = os.path.basename(file_path)
-            file = File(filename, file_path)
-            self.db.session.add(file)
+    def save_content_to_db(self, file_path, categories, entities, text, hash):
+        try:
+            # try to retrieve file from the database
+            file = self.db.session.query(File).filter(File.path == file_path).first()
+            if not file:
+                # create new file entry in the database
+                filename = os.path.basename(file_path)
+                file = File(filename, file_path)
+                self.db.session.add(file)
+                self.db.session.commit()
+
+            # create new content entry in the database
+            content = Content(file.id, text, hash)
+            content_categories = [ContentCategory(content.id, self.labels_to_ids[label], conf) for label, conf in categories.items()]
+            content.categories = content_categories
+            entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities]
+            content.entities = entities
+            self.db.session.add(content)
             self.db.session.commit()
-
-        # create new content entry in the database
-        content = Content(file.id, text)
-        content_categories = [ContentCategory(content.id, self.labels_to_ids[label], conf) for label, conf in categories.items()]
-        content.categories = content_categories
-        entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities]
-        content.entities = entities
-        self.db.session.add(content)
-        self.db.session.commit()
-        return content
-
-if __name__ == "__main__":
-    pipeline = WebCatPipeline()
-    import os
-    # data = pipeline.process_files(
-    #     ["/workspaces/webpage_categorization/data/bungee54-forums/bungee54-forums/2014-11-05/viewtopic.php_pid=4282"]
-    # )
-    # print(data)
-    # 10
-    # list directory
-    root_dir = "/workspaces/webpage_categorization/data/parallel_test"
-    files = os.listdir(root_dir)
-    files = [os.path.join(root_dir, file) for file in files]
-    print(f"Time to process 1 file with sync: {timeit.timeit(lambda: pipeline.process_files(files), number=1)}")
-    # print(f"Time to process 1 file with async: {timeit.timeit(lambda: pipeline.process_files_parallel(files), number=1)}")
-    #timeit.timeit(lambda: pipeline.process_files(["/workspaces/webpage_categorization/data/bungee54-forums/bungee54-forums/2014-11-05/viewtopic.php_pid=4282"]), number=1,)
-
-
-
-# import sys
-# from os import path
-# sys.path.append(path.dirname(__file__))
-# sys.path.append(path.dirname(__file__) + "/.." + "/..")
-# from processing.parser import WebCatParser
-# from processing.analyzer import WebCatAnalyzer
-# import webcat.api.repository.templates as t
-# import psycopg2
-
-# class WebCatPipeline():
-#     def __init__(self):
-#         self.conn = psycopg2.connect(
-#             host="host.docker.internal",
-#             database="webcat_db",
-#             user='postgres',
-#             password='postgres',
-#             port=5432)
-#         templates = self.fetch_templates()
-#         self.parser = WebCatParser(templates)
-#         self.analyzer = WebCatAnalyzer()
-#         self.batch_size = 32
-
-#     def fetch_templates(self):
-#         self.templates_repo = t.TemplatesRepository(self.conn)
-#         templates = self.templates_repo.get_all()
-#         return templates
-
-#     def process_files(self, files_path:list, **kwargs):
-#         batch_size = kwargs.get("batch_size", self.batch_size) if "batch_size" in kwargs else self.batch_size
-#         contents = self.parser.parse_files(files_path)
-#         # from (file_path, content (list of strings)) create a (file_path, content (string)) for each entry in contents
-#         # [(file_path, text), (file_path, text), ...]
-#         # create integer to path mapping to save memory when flattening the list and creating path-text pairs
-#         int_to_path = {i: file_path for i, (file_path, _) in enumerate(contents)}
-#         # invert the mapping to create a path to integer mapping
-#         path_to_int = {v: k for k, v in int_to_path.items()}
-
-#         contents = [(path_to_int[file_path], text) for file_path, content in contents for text in content]
-#         # create iterator for the contents
-#         contents_iter = iter(contents)
-
-#         batch = contents
-#         if len(contents) > batch_size:
-#             batch = [next(contents_iter) for _ in range(batch_size)]
         
-#         objects = []
-#         while batch:
-#             inputs = [content for _, content in batch]
-#             categories, entities, text = self.analyzer.analyze_content(inputs, **kwargs)
-#             for i in range(len(batch)):
-#                 objects.append({
-#                     "file": str(int_to_path[batch[i][0]]),
-#                     "categories": categories[i],
-#                     "entities": entities[i],
-#                     "text": text[i],
-#                     "raw_input": inputs[i]
-#                 })
-#             try:
-#                 batch = [next(contents_iter) for _ in range(batch_size)]
-#             except StopIteration:
-#                 batch = False
-#         return objects
-
-
-#     def process_raw_text(self, text, **kwargs):
-#         categories, entities, text = self.analyzer.analyze_content([text], **kwargs)
-#         return {
-#             "categories": categories[0],
-#             "entities": entities[0],
-#             "text": text[0]
-#         }
-    
-# if __name__ == "__main__":
-#     pipeline = WebCatPipeline()
-#     data = pipeline.process_files(
-#         ["/workspaces/webpage_categorization/data/bungee54-forums/bungee54-forums/2014-11-05/viewtopic.php_pid=4282"]
-#     )
-#     print(data)
+        except Exception as e:
+            self.db.session.rollback()
+            logging.error(f"Error while saving content to database: {e}")
+            return None
+        
+        return content

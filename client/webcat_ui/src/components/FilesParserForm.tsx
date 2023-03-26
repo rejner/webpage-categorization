@@ -4,12 +4,19 @@ import { useFilePicker, Validator } from 'use-file-picker';
 import { AppContext } from '../index';
 import {Content, entity_color_mapping} from '../models/Content';
 
+interface FilesParserStats {
+    "total": number,
+    "processed": number,
+    "duplicate": number,
+}
+
 function FilesParserForm() {
     const [hypothesisTemplate, setHypothesisTemplate] = React.useState("This example is about {}.");
     const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency,delivery");
     const [path, setPath] = React.useState("");
     const [useRecursive, setUseRecursive] = React.useState(false);
     const [content, setContent] = React.useState() as [[Content], any];
+    const [stats, setStats] = React.useState() as FilesParserStats | any;
     const [openFileSelector, { filesContent, loading, errors, plainFiles, clear }] = useFilePicker({
         multiple: false,
         readAs: 'DataURL',
@@ -17,7 +24,7 @@ function FilesParserForm() {
     // Read server_ip and server_port from the context
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         console.log(`Hypothesis Template: ${hypothesisTemplate} Labels: ${labels} Path: ${path} Use Recursive: ${useRecursive}`);
 
@@ -31,6 +38,7 @@ function FilesParserForm() {
 
         // Send the request to the server
         fetch(`http://${server_ip}:${server_port}${server_api}/webcat_files_parser`, {
+            // wait forever for the response
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -38,12 +46,15 @@ function FilesParserForm() {
             body: JSON.stringify(requestBody)
         })
         .then(response => response.json(), error => console.log("Error: " + error))
-        .then(content => {
-            if (content.error) {
-                alert(content.error);
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
                 return;
             }
-            console.log('Success:', content);
+            console.log('Success:', data);
+            let content = data.contents;
+            let stats = data.stats;
+            console.log('Success:', stats);
             // console.log('Success:', content);
             for (let c of content) {
                 for (let entity of c.entities) {
@@ -52,6 +63,7 @@ function FilesParserForm() {
                 }
             }
             setContent(content);
+            setStats(stats);
         }, error => console.log("Error: " + error)
         )
     }
@@ -98,7 +110,15 @@ function FilesParserForm() {
                         Parse
                     </Button>
                 </Form>
-
+                {
+                    stats &&
+                    <Container className='text-light mb-3 mt-3'>
+                        <h3>Stats:</h3>
+                        <div className='text-light mt-3'>Total content: {stats.total}</div>
+                        <div className='text-light mt-3'>Processed content: {stats.processed}</div>
+                        <div className='text-light mt-3'>Duplicate content: {stats.duplicate}</div>
+                    </Container>
+                }
                 {
                     content &&
                     content.map((item) => {

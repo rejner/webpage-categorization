@@ -1,4 +1,5 @@
 from transformers import AutoTokenizer, AutoModelForTokenClassification
+import logging
 
 class TweetNER7():
     def __init__(self) -> None:

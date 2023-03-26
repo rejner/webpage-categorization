@@ -55,13 +55,13 @@ class WebCatParser():
         try:
             with open(file_path) as fd:
                 contents = fd.read()
-                chunks = self.strategy.parse(contents)
+                chunks, hashes = self.strategy.parse(contents)
                 if not chunks:
                     raise NoParsableContentError("No parsable content found.")
                 
                 # self.process_all_tables(contents)
                 chunks  = [self.clear_text(chunk) for chunk in chunks]
-                return (str(file_path), chunks) 
+                return (str(file_path), (chunks, hashes)) 
             
         except Exception as e:
             logging.info(f"No parsable content found in file: {file_path}")

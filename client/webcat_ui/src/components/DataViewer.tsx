@@ -23,9 +23,9 @@ function DataViewer() {
     const [entity_types, setEntityTypes] = React.useState() as [string[], (entity_types: string[]) => void];
     const [content, setContent] = React.useState() as [Content[], (content: Content[]) => void];
     const [filter, setFilter] = React.useState<WebCatFilters>({
-        categories: [],
+        categories: ['all'],
         cat_threshold: 0.0,
-        entity_types: [],
+        entity_types: ['all'],
         ent_threshold: 0.0,
         entity_values: [],
         file_names: [],
@@ -55,8 +55,12 @@ function DataViewer() {
             } 
 
             let info: WebCatInfo = data;
-            setCategories(info.categories);
-            setEntityTypes(info.entity_types);
+            let cats = ['all'] as string[];
+            cats.push(...info.categories);
+            let ents = ['all'] as string[];
+            ents.push(...info.entity_types);
+            setCategories(cats);
+            setEntityTypes(ents);
             
         }, error => console.log("Error: " + error)
         )
@@ -94,7 +98,7 @@ function DataViewer() {
 
     // filter useeffect
     React.useEffect(() => {
-        if (content && entity_types && entity_types.length > 0) {
+        if (content && filter.entity_types && filter.entity_types.length > 0) {
             // query all elements with class name 'entity'
             let entities = document.getElementsByClassName('entity');
             for (let i = 0; i < entities.length; i++) {
@@ -103,7 +107,7 @@ function DataViewer() {
                 let classes = entity.className.split(' ');
                 let entity_type = classes[1];
                 
-                if (!filter.entity_types.includes(entity_type)) {
+                if (!filter.entity_types.includes(entity_type) && !filter.entity_types.includes('all')) {
                     // mute the entity but keep visible
                     entity.style.opacity = '0.2';
                     // set alpha of background color to 0
@@ -147,11 +151,11 @@ function DataViewer() {
     return (
         <>
             <Container id="filters-tab" className="bg-none text-light" >
-                <Row>
-                    <Col>
-                        <Form.Label className="pt-3">Categories</Form.Label>
-                        <Stack direction="horizontal" gap={3}>
-                            {categories && categories.map((name) => (    
+                {/* Row with elements with wrap property, horizontal, stack left */}
+                <Row className="flex-wrap justify-content-md-start">
+                    <Form.Label className="pt-3">Categories</Form.Label>
+                    {categories && categories.map((name) => (
+                        <Col key={name} md="auto" className="p-1">    
                                 <FilterButton key={name} name={name} selected={filter.categories.includes(name)} onClick={(name) => {
                                     if (filter.categories.includes(name)) {
                                         setFilter({...filter, categories: filter.categories.filter((cat) => cat !== name)});
@@ -159,23 +163,22 @@ function DataViewer() {
                                         setFilter({...filter, categories: [...filter.categories, name]});
                                     }
                                 }} />
-                            ))}
-                        </Stack>
-                    </Col>
-                    <Col>
-                        <Form.Label className="pt-3">Entity Types</Form.Label>
-                        <Stack direction="horizontal" gap={3}>
-                            {entity_types && entity_types.map((name) => (    
-                                <FilterButton key={name} name={name} selected={filter.entity_types.includes(name)} onClick={(name) => {
-                                    if (filter.entity_types.includes(name)) {
-                                        setFilter({...filter, entity_types: filter.entity_types.filter((ent) => ent !== name)});
-                                    } else {
-                                        setFilter({...filter, entity_types: [...filter.entity_types, name]});
-                                    }
-                                }} />
-                            ))}
-                        </Stack>
-                    </Col>
+                                </Col>
+                        ))}
+                </Row>
+                <Row className="flex-wrap justify-content-md-start">
+                    <Form.Label className="pt-3">Entity Types</Form.Label>
+                        {entity_types && entity_types.map((name) => (
+                            <Col key={name} md="auto" className="p-1">      
+                            <FilterButton key={name} name={name} selected={filter.entity_types.includes(name)} onClick={(name) => {
+                                if (filter.entity_types.includes(name)) {
+                                    setFilter({...filter, entity_types: filter.entity_types.filter((ent) => ent !== name)});
+                                } else {
+                                    setFilter({...filter, entity_types: [...filter.entity_types, name]});
+                                }
+                            }} />
+                            </Col>
+                        ))}
                 </Row>
                 {/* Numerical value for setting threshold of category */}
                 <Row>
@@ -230,6 +233,17 @@ function DataViewer() {
                     </Col>
                 </Row>
             </Container>
+            {/* Show length of content */}
+            {
+                content &&
+                <Container id="data-tab" className="bg-none text-light">
+                    <Row>
+                        <Col>
+                            <h4>Number of results: {content.length}</h4>
+                        </Col>
+                    </Row>
+                </Container>
+            }
             <Container id="data-tab" className="bg-none text-light">
                 {
                     content &&
@@ -239,17 +253,20 @@ function DataViewer() {
                                 {/*an empty separator line*/}
                                 <div className='border rounded text-light mb-5'></div>
                                 {/* filename */}
-                                <Row>
-                                    <Col>
-                                        <Container className='text-light mb-3'> <h3>Path to file:</h3><div className='text-light mt-3'/>{item.file}</Container>
-                                    </Col>
-                                    {/* Delete button, column only of button size pushing it most to the right */}
-                                    <Col xs='auto'>
-                                        <Button className="mt-3" variant="danger" onClick={() => {
-                                            delete_content(item.id);
-                                        }}>Delete</Button>
-                                    </Col>
-                                </Row>
+                                
+                                <Container className='text-light mb-3'> 
+                                    <Row>
+                                        <ExpandableText text={item.file!} className='text-light ml-3' />   
+                                        {/* Delete button, column only of button size pushing it most to the right */}
+                                        <Col xs='auto'>
+                                            <Button className="mt-3" variant="danger" onClick={() => {
+                                                delete_content(item.id);
+                                            }}>Delete</Button>
+                                        </Col>
+                                    </Row>
+                                </Container>
+                                
+                
                                 
                                 <Container className='text-light mb-3'> <h3 className='mb-3'>Categories:</h3> {
                                 Object.keys(item.categories).map((key) => {
@@ -297,5 +314,25 @@ function FilterButton (props: {name: string, selected: boolean, onClick: (name: 
         <Button variant={props.selected ? "primary" : "outline-primary"} onClick={() => props.onClick(props.name)}>
             {props.name}
         </Button>
+    );
+}
+
+function ExpandableText (props: {text: string, className: string}) {
+    /* Display plus and minus icon */
+    const [expanded, setExpanded] = React.useState(false);
+    return (
+        <Col className={props.className}>
+            {/* Display plus icon which will expand the file path if needed */}
+            <Button variant="outline-primary" onClick={() => setExpanded(!expanded)}>
+                {expanded ? 'hide' : 'show more'}
+            </Button>
+            {/* Display file path if expanded */}
+            {expanded && 
+            <>
+                <Container className='text-light mb-3 mt-3'> <h4>Path to file:</h4></Container>
+                <Container className='text-light mb-3'> <h6>{props.text}</h6></Container>
+            </>
+            }
+        </Col>
     );
 }

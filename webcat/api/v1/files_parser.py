@@ -11,10 +11,11 @@ files_parser.add_argument('labels', type=str, action='append')
 files_parser.add_argument('path', type=str)
 files_parser.add_argument('recursive', type=bool)
 
+worker = WebCatWorker(db)
+
 class WebCatFilesParser(Resource):
     def __init__(self):
         super().__init__()
-        self.worker = WebCatWorker(db)
 
     def verify_request(self, args):
         if args['hypothesis_template'] is None or args['hypothesis_template'] == "":
@@ -39,12 +40,13 @@ class WebCatFilesParser(Resource):
             return {'error': msg}, 400
 
         try:
-            result = self.worker.process_files(args['path'], 
+            contents, stats = worker.process_files(args['path'], 
                                         **{'hypothesis_template': args['hypothesis_template'], 
                                             'labels': args['labels'],
                                             'recursive': args['recursive']})
         except Exception as e:
             logging.error(e.with_traceback(None))
             return {'error': str(e)}, 400
-    
-        return result, 200
+
+        return {'contents': contents, 'stats': stats}, 200
+        # return result, 200

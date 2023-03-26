@@ -42,12 +42,12 @@ class WebCatDataProvider(Resource):
         # and return the filtered data
         
         # create query for each filter and combine them with AND
-        if categories:
+        if categories and 'all' not in categories:
             category_query = db.session.query(Content).filter(Content.categories.any(ContentCategory.category.has(Category.name.in_(categories))))
         else:
             category_query = db.session.query(Content).filter(Content.categories.any())
 
-        if entity_types:
+        if entity_types and 'all' not in entity_types:
             entity_query = db.session.query(Content).filter(Content.entities.any(NamedEntity.type.has(EntityType.name.in_(entity_types))))
         else:
             entity_query = db.session.query(Content).filter(Content.entities.any())

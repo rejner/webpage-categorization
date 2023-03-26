@@ -4,6 +4,7 @@ import re
 import json
 import os
 import nltk
+import hashlib
 
 class ParsingStrategy(object):
     """
@@ -185,14 +186,15 @@ class StoredTemplatesStrategy(ParsingStrategy):
             content_elements = segments['post-body']
         
         texts = []
+        hashes = []
         for el in content_elements:
             text = self.process_text(el.text)
             if text is None:
                 continue
             texts.extend(text) if isinstance(text, list) else texts.append(text)
-
+            hashes.append(hashlib.md5(text.encode('utf-8')).hexdigest())
     
-        return texts
+        return texts, hashes
 
 class TemplatesStrategy(ParsingStrategy):
     """
@@ -280,14 +282,22 @@ class TemplatesStrategy(ParsingStrategy):
             return None
         
         texts = []
+        hashes = []
         content_elements = segments['post-body']
         for el in content_elements:
             text = self.process_text(el.text)
             if text is None:
                 continue
-            texts.extend(text) if isinstance(text, list) else texts.append(text)
-    
-        return texts
+            if isinstance(text, list):
+                texts.extend(text) 
+                hashes.extend([hashlib.md5(t.encode('utf-8')).hexdigest() for t in text])
+            else:
+                texts.append(text)
+                hashes.append(hashlib.md5(text.encode('utf-8')).hexdigest())
+
+        assert len(texts) == len(hashes)
+                
+        return texts, hashes
 
 
 if __name__ == "__main__":
