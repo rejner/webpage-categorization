@@ -53,28 +53,145 @@ class TweetNER7():
         texts = [texts[i].replace("<pad>", "") for i in range(len(texts))]
         return texts
 
+    def print_entity_text_side_by_side(self, texts, res):
+        # each text is a list of tokens, print them vertically with the corresponding entity
+        for i in range(len(res)):
+            print("Text {}: ".format(i))
+            # print text and entity side by side aligned
+            for j in range(len(res[i])):
+                print("{:20} {:20}".format(texts[i][j], res[i][j]))
+            print("")
+
+    # def extract_whole_entities(self, texts, res):
+    #     """
+    #     Extract whole entities from texts and res.
+    #     Start of entity is marked with B- and any following tokens are marked with I-.
+    #     Also store the entity type.
+    #     """
+    #     print("Extracting whole entities...")
+    #     self.print_entity_text_side_by_side(texts, res)
+    #     entities = []
+    #     for i in range(len(res)):
+    #         entities.append([])
+    #         entity = ""
+    #         for j in range(len(res[i])):
+    #             if res[i][j].startswith("B-"):
+    #                 entity = texts[i][j]
+    #             elif res[i][j].startswith("I-"):
+    #                 entity += texts[i][j]
+    #             elif entity != "":
+    #                 entity = entity.replace("Ġ", " ")
+    #                 # remove leading and trailing whitespaces
+    #                 entity = entity.strip()
+    #                 entities[i].append((entity, res[i][j-1].split("-")[1]))
+    #                 entity = ""
+
+    #     return entities
+
+    # def extract_whole_entities(self, texts, res):
+    #     """
+    #     Extract whole entities from texts and res.
+    #     Start of entity is marked with B- and any following tokens are marked with I-.
+    #     Also store the entity type.
+    #     """
+    #     def clear_entity(entity):
+    #         entity = entity.replace("Ġ", " ")
+    #         entity = entity.strip()
+    #         return entity
+        
+    #     print("Extracting whole entities...")
+    #     self.print_entity_text_side_by_side(texts, res)
+    #     entities = []
+    #     for i in range(len(res)):
+    #         entities.append([])
+    #         entity = ""
+    #         sub_entity = ""
+    #         entity_type = ""
+    #         sub_entity_type = ""
+    #         for j in range(len(res[i])):
+    #             if res[i][j].startswith("B-"):
+    #                 if entity != "":
+    #                     # store the previous entity
+    #                     entity = clear_entity(entity)
+    #                     entities[i].append((entity, entity_type))
+    #                 entity = texts[i][j]
+    #                 entity_type = res[i][j].split("-")[1]
+    #             elif res[i][j].startswith("I-"):
+    #                 # if entity type changes, store the previous entity
+    #                 if entity_type != res[i][j].split("-")[1]:
+    #                     entity = clear_entity(entity)
+    #                     entities[i].append((entity, entity_type))
+    #                     entity = ""
+    #                     entity_type = res[i][j].split("-")[1]
+    #                 entity += texts[i][j]
+    #             elif entity != "":
+    #                 # store the entity
+    #                 entity = clear_entity(entity)
+    #                 entities[i].append((entity, entity_type))
+    #                 entity = ""
+    #                 entity_type = ""
+    #         # If there's still an entity left
+    #         if entity != "":
+    #             entities[i].append((entity, entity_type))
+        
+    #     print("Extracted entities: ", entities)
+
+    #     return entities
+
     def extract_whole_entities(self, texts, res):
         """
         Extract whole entities from texts and res.
         Start of entity is marked with B- and any following tokens are marked with I-.
         Also store the entity type.
         """
+        def clear_entity(entity):
+            entity = entity.replace("Ġ", " ")
+            # remove leading and trailing whitespaces or special characters
+            entity = entity.strip(" ,.!?;:()[]{}")
+            return entity
+        
+        # print("Extracting whole entities...")
+        # self.print_entity_text_side_by_side(texts, res)
         entities = []
         for i in range(len(res)):
             entities.append([])
             entity = ""
+            entity_type = ""
+            entity_stack = []
             for j in range(len(res[i])):
                 if res[i][j].startswith("B-"):
+                    if entity != "":
+                        entity = clear_entity(entity)
+                        entities[i].append((entity, entity_type))
+                    entity_stack.append((entity, entity_type))
                     entity = texts[i][j]
+                    entity_type = res[i][j].split("-")[1]
                 elif res[i][j].startswith("I-"):
                     entity += texts[i][j]
-                elif entity != "":
-                    entity = entity.replace("Ġ", "")
-                    entities[i].append((entity, res[i][j-1].split("-")[1]))
-                    entity = ""
+                elif res[i][j].startswith("O"):
+                    if entity != "":
+                        entity = clear_entity(entity)
+                        entities[i].append((entity, entity_type))
+                        entity = ""
+                        entity_type = ""
+                    if entity_stack:
+                        entity, entity_type = entity_stack.pop()
+            # If there's still an entity left
+            if entity != "":
+                entity = clear_entity(entity)
+                entities[i].append((entity, entity_type))
+                entity = ""
+                entity_type = ""
 
+        # Remove empty entities
+        for i in range(len(entities)):
+            entities[i] = list(set(entities[i]))
+            for entity in entities[i]:
+                if entity[0] == "" or entity[1] == "":
+                    entities[i].remove(entity)
+
+        # print("Extracted entities: ", entities)
         return entities
-
 
     def classify(self, inputs):
         x = self.tokenizer(inputs, return_tensors="pt", padding=True).to("cuda")
