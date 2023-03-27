@@ -35,12 +35,20 @@ class WebCatWorker():
         raise Exception("Path is not a file or directory")
         
 
+    # def process_files(self, files_path:list, **kwargs):
+    #     if self.pipeline is None:
+    #         self.pipeline = WebCatPipeline(self.db)
+    #     file_paths = self.create_files_list(files_path, **kwargs)
+    #     return self.pipeline.process_files(file_paths, **kwargs)
+    
     def process_files(self, files_path:list, **kwargs):
         if self.pipeline is None:
             self.pipeline = WebCatPipeline(self.db)
         file_paths = self.create_files_list(files_path, **kwargs)
-        return self.pipeline.process_files(file_paths, **kwargs)
- 
+        # r1 = self.pipeline.process_files(file_paths, **kwargs)
+        r1 = self.pipeline.process_files_as_dataset(file_paths, **kwargs)
+        return r1
+
     def process_raw_text(self, text: str, **kwargs):
         if self.pipeline is None:
             self.pipeline = WebCatPipeline(self.db)

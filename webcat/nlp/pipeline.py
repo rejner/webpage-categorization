@@ -10,6 +10,8 @@ import timeit
 import multiprocessing as mp
 import logging
 import time
+import datasets
+import time
 
 def producer_parser(queue, parser, file_paths):
     import os
@@ -148,6 +150,7 @@ class WebCatPipeline():
 
 
     def process_files(self, files_path:list, **kwargs):
+        start = time.time()
         batch_size = kwargs.get("batch_size", self.batch_size) if "batch_size" in kwargs else self.batch_size
         labels = kwargs["labels"] if "labels" in kwargs else None
         self.load_categories(labels)
@@ -220,9 +223,75 @@ class WebCatPipeline():
             # construct the next batch, if there are no more items, then the batch will be empty
             batch = [next(contents_iter, (None, None, None)) for _ in range(batch_size)]
 
+        end = time.time()
+        print("Time to process files [custom batches]: ", end - start)
+        return objects, stats
 
+    def process_files_as_dataset(self, files_path:list, **kwargs):
+        start = time.time()
+        labels = kwargs["labels"] if "labels" in kwargs else None
+        self.load_categories(labels)
+        self.load_entity_types()
+        contents = self.parser.parse_files(files_path)
+        contents = [content for content in contents if content]
+        if len(contents) == 0 or contents == None:
+            return [], {"total": 0,"processed": 0,"errors": 0,"duplicate": 0}
+
+        # from (file_path, content (list of strings), hashes (list of hashes)) create a (file_path, content (string), hash) for each entry in contents
+        # [(file_path, text, hash), (file_path, text, hash), ...]
+        # create integer to path mapping to save memory when flattening the list and creating path-text pairs
+        int_to_path = {i: file_path for i, (file_path, _) in enumerate(contents)}
+        # invert the mapping to create a path to integer mapping
+        path_to_int = {v: k for k, v in int_to_path.items()}
+
+        # flatten the list of contents
+        contents = [(path_to_int[file_path], text, hash) for file_path, content in contents for text, hash in zip(*content)]
+
+        # filter any hashes that are already in the database
+        hashes = [hash for _, _, hash in contents]
+        hashes_in_db = self.db.session.query(Content.hash).filter(Content.hash.in_(hashes)).all()
+        hashes_in_db = [hash[0] for hash in hashes_in_db]
+        contents_filtered = [content for content in contents if content[2] not in hashes_in_db]
+        hashes = [hash for _, _, hash in contents_filtered]
+        files = [str(int_to_path[content[0]]) for content in contents_filtered]
+
+        logging.warn(f"Constructing dataset from {len(contents_filtered)} content chunks...")
+
+        dataset = datasets.Dataset.from_list([{ "text": content[1] } for content in contents_filtered])
+        
+        objects = []
+        stats = {
+            "total": len(contents),
+            "processed": 0,
+            "duplicate": len(contents) - len(contents_filtered),
+            "error": 0
+        }
+
+        categories, entities, texts = self.analyzer.analyze_dataset(dataset, **kwargs)
+        if categories and entities:
+            for category, entity, text, hash, file in zip(categories, entities, texts, hashes, files):
+                content = self.save_content_to_db(file, category, entity, text, hash)
+                if content == None:
+                    stats["error"] += 1
+                    continue
+                cat_names = [category.category.name for category in content.categories]
+                cat_confs = [category.confidence for category in content.categories]
+                # create a dictionary of the categories and their confidence
+                cats = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
+                objects.append({
+                    "hash": hash,
+                    "file": file,
+                    "categories": cats,
+                    "entities": [entity.json_serialize() for entity in content.entities],
+                    "text": text,
+                })
+                stats["processed"] += 1
+
+        end = time.time()
+        print("Time to process files [Dataset]: ", end - start)
         return objects, stats
     
+
     def process_files_parallel(self, files_path:list, **kwargs):
         # spawn a new process, which takes all file paths
         # and parses them, putting the results in a queue
@@ -293,8 +362,14 @@ class WebCatPipeline():
             content = Content(file.id, text, hash)
             content_categories = [ContentCategory(content.id, self.labels_to_ids[label], conf) for label, conf in categories.items()]
             content.categories = content_categories
-            entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities]
-            content.entities = entities
+            ents = []
+            if entities:
+                if isinstance(entities[0], tuple):
+                    ents = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entities if entity[1] in self.types_to_ids]
+                if isinstance(entities[0], dict):
+                    ents = [NamedEntity(entity["word"], self.types_to_ids[entity["entity_group"]]) for entity in entities]
+
+            content.entities = ents
             self.db.session.add(content)
             self.db.session.commit()
         

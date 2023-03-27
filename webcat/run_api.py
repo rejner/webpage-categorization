@@ -7,4 +7,4 @@ import api.api_v1 as v1
 
 if __name__ == "__main__":
     app, _ = v1.create_app('config.py')
-    app.run(debug=True)
+    app.run(debug=False)

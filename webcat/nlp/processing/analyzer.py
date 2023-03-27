@@ -4,6 +4,7 @@ sys.path.append(path.dirname(__file__) + "/..")
 from models.classification.joeddav_xlm_roberta import XLMRobertaLarge
 from models.classification.bart_large_mnli import BARTLarge
 from models.ner.tweetner7 import TweetNER7
+import logging
 
 '''
     Analyzer class definition.
@@ -22,15 +23,38 @@ class WebCatAnalyzer():
         except Exception as e:
             print(e)
             return None, None, None
+    
+    def analyze_dataset(self, dataset, **kwargs):
+        try:
+            logging.info("Analyzing dataset")
+            logging.info("Classifying dataset")
+            categories = self.classify_dataset(dataset, **kwargs)
+            logging.info("Performing NER on dataset")
+            entities, text = self.perform_NER_dataset(dataset, **kwargs)
+            logging.info("Finished analyzing dataset")
+            return categories, entities, text
+        except Exception as e:
+            print(e)
+            return None, None, None
         
     def classify(self, inputs, **kwargs):
-        inputs = self.verify_inputs(inputs)
+        # inputs = self.verify_inputs(inputs)
         categories = self.classifier.classify(inputs, **kwargs)
         return categories
     
     def perform_NER(self, inputs, **kwargs):
-        inputs = self.verify_inputs(inputs)
+        # inputs = self.verify_inputs(inputs)
         entities, text = self.ner_model.classify(inputs)
+        return entities, text
+    
+    def classify_dataset(self, dataset, **kwargs):
+        # inputs = self.verify_inputs(inputs)
+        categories = self.classifier.classify_dataset(dataset, **kwargs)
+        return categories
+    
+    def perform_NER_dataset(self, dataset, **kwargs):
+        # inputs = self.verify_inputs(inputs)
+        entities, text = self.ner_model.classify_dataset(dataset)
         return entities, text
     
     def verify_inputs(self, inputs):
