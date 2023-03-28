@@ -1,8 +1,4 @@
-import sys
 import os
-from os import path
-#sys.path.append(path.dirname(__file__))
-#sys.path.append(path.dirname(__file__) + "/.." + "/..")
 from .processing.parser import WebCatParser
 from .processing.analyzer import WebCatAnalyzer
 from api.models_extension import Template, Content, File, NamedEntity, EntityType, Category, ContentCategory
@@ -12,98 +8,12 @@ import logging
 import time
 import datasets
 import time
-
-def producer_parser(queue, parser, file_paths):
-    import os
-    print('Starting producer => {}'.format(os.getpid()))
-    # process files in the batches of 32
-    batch_size = 32
-    total = 0
-    for i in range(0, len(file_paths), batch_size):
-        batch = file_paths[i:i+batch_size]
-
-        print('Producer {} processing batch {}...'.format(os.getpid(), i))
-        # process the batch
-        contents = parser.parse_files(batch)
-
-        print('Producer {} finished processing batch {}...'.format(os.getpid(), i))
-        
-        contents = [(file_path, text) for file_path, content in contents for text in content]
-        # add the batch to the queue
-        for content in contents:
-            queue.put(content)
-            total += 1
-
-        print('Producer {} finished adding batch {} to the queue...'.format(os.getpid(), i))
-
-    print('Producer {} exiting (produced {} files total)...'.format(os.getpid(), total))
-
-def consumer_analyzer(queue, results_queue, lock, **kwargs):
-    import os
-    # Synchronize access to the console
-    with lock:
-        print('Starting consumer => {}'.format(os.getpid()))
-    
-    analyzer = WebCatAnalyzer()
-
-    with lock:
-        print('Consumer {} started...'.format(os.getpid()))
-
-    # process the queue
-    while True:
-        # Synchronize access to the console
-        with lock:
-            print('Consumer {} waiting for items in the queue...'.format(os.getpid()))
-
-        # take at most 16 items from the queue
-        contents = []
-        for i in range(16):
-            try:
-                contents.append(queue.get(timeout=1))
-            except:
-                break
-        
-        if len(contents) == 0:
-            break
-        
-        # Synchronize access to the console
-        with lock:
-            print('Consumer {} processing item...'.format(os.getpid()))
-        # process the item
-        # contents = [(file_path, text) for file_path, content in contents for text in content]
-        inputs = [content for _, content in contents]
-        logging.info(f"Analyzing {len(inputs)} files")
-        categories, entities, text =analyzer.analyze_content(inputs, **kwargs)
-        if categories and entities and text:
-            for i in range(len(contents)):
-                results_queue.put({
-                    "file": contents[i][0],
-                    "categories": categories[i],
-                    "entities": entities[i],
-                    "text": text[i],
-                    "raw_input": inputs[i]
-                })
-
-        # Synchronize access to the console
-        with lock:
-            print('Consumer {} finished processing item...'.format(os.getpid()))
-        # indicate that the item has been processed
-        
-        # Synchronize access to the console
-        with lock:
-            print('Consumer {} finished processing item...'.format(os.getpid()))
- 
-    # Synchronize access to the console
-    with lock:
-        print('Consumer {} exiting...'.format(os.getpid()))
-    
-    exit(0)
+import psycopg2
 
 class WebCatPipeline():
     def __init__(self, db):
         self.db = db
-        templates = self.fetch_templates()
-        self.parser = WebCatParser(templates)
+        self.initialize_parser()
         self.analyzer = WebCatAnalyzer()
         self.batch_size = 16
         self.max_queue_size = 1000
@@ -114,6 +24,10 @@ class WebCatPipeline():
         # with 
         templates = self.db.session.query(Template).all()
         return templates
+    
+    def initialize_parser(self):
+        templates = self.fetch_templates()
+        self.parser = WebCatParser(templates)
 
     def load_categories(self, labels):
         labels_to_ids = {}
@@ -148,7 +62,7 @@ class WebCatPipeline():
 
         self.types_to_ids = types_to_ids
 
-
+    @DeprecationWarning
     def process_files(self, files_path:list, **kwargs):
         start = time.time()
         batch_size = kwargs.get("batch_size", self.batch_size) if "batch_size" in kwargs else self.batch_size
@@ -230,6 +144,7 @@ class WebCatPipeline():
     def process_files_as_dataset(self, files_path:list, **kwargs):
         start = time.time()
         labels = kwargs["labels"] if "labels" in kwargs else None
+        self.initialize_parser()
         self.load_categories(labels)
         self.load_entity_types()
         contents = self.parser.parse_files(files_path)
@@ -251,7 +166,23 @@ class WebCatPipeline():
         hashes = [hash for _, _, hash in contents]
         hashes_in_db = self.db.session.query(Content.hash).filter(Content.hash.in_(hashes)).all()
         hashes_in_db = [hash[0] for hash in hashes_in_db]
-        contents_filtered = [content for content in contents if content[2] not in hashes_in_db]
+        contents_tmp = [content for content in contents if content[2] not in hashes_in_db]
+        # now filter any hashes that are duplicates
+        filter_stats = {
+            "total": len(contents),
+            "duplicate": 0,
+        }
+        hash_index = {}
+        contents_filtered = []
+        for i, content in enumerate(contents_tmp):
+            if content[2] not in hash_index:
+                hash_index[content[2]] = i
+                contents_filtered.append(content)
+            else:
+                filter_stats["duplicate"] += 1
+
+        logging.warn(f"Filtered {filter_stats['duplicate']} duplicate hashes out of {filter_stats['total']} total hashes")
+        
         hashes = [hash for _, _, hash in contents_filtered]
         files = [str(int_to_path[content[0]]) for content in contents_filtered]
 
@@ -267,73 +198,67 @@ class WebCatPipeline():
             "error": 0
         }
 
-        categories, entities, texts = self.analyzer.analyze_dataset(dataset, **kwargs)
-        if categories and entities:
-            for category, entity, text, hash, file in zip(categories, entities, texts, hashes, files):
-                content = self.save_content_to_db(file, category, entity, text, hash)
-                if content == None:
-                    stats["error"] += 1
-                    continue
-                cat_names = [category.category.name for category in content.categories]
-                cat_confs = [category.confidence for category in content.categories]
-                # create a dictionary of the categories and their confidence
-                cats = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
-                objects.append({
-                    "hash": hash,
-                    "file": file,
-                    "categories": cats,
-                    "entities": [entity.json_serialize() for entity in content.entities],
-                    "text": text,
-                })
-                stats["processed"] += 1
+        # process database by batches of 32
+        batch_size = 32
+        for i in range(0, len(contents_filtered), batch_size):
+            try:
+                logging.info(f"Processing batch {i} to {min(i + batch_size, len(contents_filtered))} of {len(contents_filtered)}")
+                dataset_batch = dataset.select(range(i, min(i + batch_size, len(contents_filtered))))
+                hashes_batch = hashes[i:min(i + batch_size, len(contents_filtered))]
+                files_batch = files[i:min(i + batch_size, len(contents_filtered))]
+                categories, entities, texts = self.analyzer.analyze_dataset(dataset_batch, **kwargs)
+                if categories and entities:
+                    # for category, entity, text, hash, file in zip(categories, entities, texts, hashes_batch, files_batch):
+                    contents = self.save_content_to_db_batch(files_batch, categories, entities, texts, hashes_batch)
+                    if contents == None:
+                        stats["error"] += 1
+                        continue
+
+                    for j, content in enumerate(contents):
+                        if content == None:
+                            stats["error"] += 1
+                            continue
+                        cat_names = [category.category.name for category in content.categories]
+                        cat_confs = [category.confidence for category in content.categories]
+                        # create a dictionary of the categories and their confidence
+                        cats = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
+                        objects.append({
+                            "hash": hashes_batch[j],
+                            "file": files_batch[j],
+                            "categories": cats,
+                            "entities": [entity.json_serialize() for entity in content.entities],
+                            "text": content.text,
+                        })
+                        stats["processed"] += 1
+
+            except Exception as e:
+                logging.error(f"Error processing batch {i} to {min(i + batch_size, len(contents_filtered))} of {len(contents_filtered)}")
+                logging.error(e)
+                continue
+
+        # categories, entities, texts = self.analyzer.analyze_dataset(dataset, **kwargs)
+        # if categories and entities:
+        #     for category, entity, text, hash, file in zip(categories, entities, texts, hashes, files):
+        #         content = self.save_content_to_db(file, category, entity, text, hash)
+        #         if content == None:
+        #             stats["error"] += 1
+        #             continue
+        #         cat_names = [category.category.name for category in content.categories]
+        #         cat_confs = [category.confidence for category in content.categories]
+        #         # create a dictionary of the categories and their confidence
+        #         cats = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
+        #         objects.append({
+        #             "hash": hash,
+        #             "file": file,
+        #             "categories": cats,
+        #             "entities": [entity.json_serialize() for entity in content.entities],
+        #             "text": text,
+        #         })
+        #         stats["processed"] += 1
 
         end = time.time()
         print("Time to process files [Dataset]: ", end - start)
         return objects, stats
-    
-
-    def process_files_parallel(self, files_path:list, **kwargs):
-        # spawn a new process, which takes all file paths
-        # and parses them, putting the results in a queue
-        p = mp.Process(target=producer_parser, args=(self.queue, self.parser, files_path))
-        p.start()
-
-        # wait for some samples in the queue
-        while self.queue.qsize() < 1:
-            print("Waiting for samples in the queue...")
-            time.sleep(1)
-
-        print("Starting analyzer...")
-        results = []
-        while True:
-            # take at most 16 items from the queue
-            contents = []
-            for i in range(self.batch_size):
-                try:
-                    contents.append(self.queue.get(timeout=1))
-                except:
-                    break
-            
-            if len(contents) == 0:
-                break
-            
-            # process the item
-            # contents = [(file_path, text) for file_path, content in contents for text in content]
-            inputs = [content for _, content in contents]
-            logging.info(f"Analyzing {len(inputs)} files")
-            categories, entities, text = self.analyzer.analyze_content(inputs, **kwargs)
-            if categories and entities and text:
-                for i in range(len(contents)):
-                    results.append({
-                        "file": contents[i][0],
-                        "categories": categories[i],
-                        "entities": entities[i],
-                        "text": text[i],
-                        "raw_input": inputs[i]
-                    })
-        
-        print(len(results))
-        return results
 
     def process_raw_text(self, text, **kwargs):
         labels = kwargs["labels"] if "labels" in kwargs else None
@@ -379,3 +304,46 @@ class WebCatPipeline():
             return None
         
         return content
+    
+    def save_content_to_db_batch(self, file_paths, categories, entities, texts, hashes):
+        try:
+            # create new file entries in the database
+            files = []
+            for file_path in file_paths:
+                filename = os.path.basename(file_path)
+                file = File(filename, file_path)
+                self.db.session.add(file)
+                files.append(file)
+            self.db.session.commit()
+
+            # create new content entries in the database
+            contents = []
+            for file, category, entity, text, hash in zip(files, categories, entities, texts, hashes):
+                try:
+                    content = Content(file.id, text, hash)
+                    content_categories = [ContentCategory(content.id, self.labels_to_ids[label], conf) for label, conf in category.items()]
+                    content.categories = content_categories
+                    content.entities = [NamedEntity(entity[0], self.types_to_ids[entity[1]]) for entity in entity]
+                    self.db.session.add(content)
+                    self.db.session.commit()
+                    contents.append(content)
+                
+                except psycopg2.errors.UniqueViolation:
+                    self.db.session.rollback()
+                    logging.error(f"Content with hash {hash} already exists in the database.")
+                    contents.append(None)
+                    continue
+                
+                except Exception as e:
+                    self.db.session.rollback()
+                    logging.error(f"Error while saving content to database: {e}")
+                    contents.append(None)
+                    continue
+                
+        
+        except Exception as e:
+            self.db.session.rollback()
+            logging.error(f"Error while saving content to database: {e}")
+            return None
+        
+        return contents

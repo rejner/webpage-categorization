@@ -8,3 +8,6 @@ models/logs/*
 logs/*
 venv
 db/*
+.pytest_cache
+model_repository/*
+!model_repository/download.py

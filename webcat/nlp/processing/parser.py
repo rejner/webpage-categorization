@@ -1,6 +1,5 @@
 from pathlib import Path
 import logging
-import pandas as pd
 import re
 import sys
 import os
@@ -65,21 +64,6 @@ class WebCatParser():
             
         except Exception as e:
             logging.info(f"No parsable content found in file: {file_path}")
-
-
-    '''
-        Process all tables with pandas library, remove empty columns.
-    '''
-    def process_all_tables(self, contents):
-        try:
-            df_list = pd.read_html(contents) # this parses all the tables in webpages to a list
-            for df in df_list:
-                df = df.dropna(axis=1, how='all') # drop columns with all NaN values
-                print(df.head())
-
-        except Exception as e:
-            logging.info(f"{e}")
-
 
     def clear_text(self, text):
         # remove urls

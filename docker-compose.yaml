@@ -1,5 +1,44 @@
 version: '3.8'
+
 services:
+  webcat-client:
+    image: webcat/node-client
+    restart: always
+    ports:
+      - '3000:3000'
+    depends_on:
+      - webcat-server
+    environment:
+      - REACT_APP_API_URL=http://webcat-server:8080
+    
+  webcat-server:
+    image: webcat/server
+    restart: always
+    ports:
+      - '5000:5000'
+    depends_on:
+      - postgres
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/model_repository:/workspace/model_repository"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        python3 /workspace/model_repository/download.py
+        python3 /workspace/webcat/run_api.py
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    
+    
+
+
   postgres:
     image: postgres
     restart: always
@@ -11,6 +50,7 @@ services:
       - '5432:5432'
     volumes: 
       - db:/var/lib/postgresql/data
+
 volumes:
   db:
     driver: local

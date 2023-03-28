@@ -5,6 +5,9 @@ import json
 import os
 import nltk
 import hashlib
+import urlextract
+
+nltk.download('punkt')
 
 class ParsingStrategy(object):
     """
@@ -29,6 +32,10 @@ class ParsingStrategy(object):
     def process_text(self, text):
         """Process the given text.
         """
+        # Extract URLs and replace them with a placeholder [URL]
+        urls = urlextract.URLExtract().find_urls(text)
+        for url in urls:
+            text = text.replace(url, "{{URL}}")
 
         # Remove all the newlines
         text = text.replace("\n", " ")
@@ -225,6 +232,10 @@ class TemplatesStrategy(ParsingStrategy):
             for type in self.segment_types:
                 tags = [el.tag for el in template.elements if el.type == type]
                 classes = [el.classes for el in template.elements if el.type == type]
+                if len(tags) == 0:
+                    t[type] = None
+                    continue
+
                 t[type] = {
                     'tags': tags,
                     'tags_re': self._construct_regex(tags),
@@ -256,6 +267,9 @@ class TemplatesStrategy(ParsingStrategy):
             # find the rest of the segments
             for segment in self.segment_types:
                 template = candidate_template[segment]
+                if template is None:
+                    continue
+
                 elements = soup.find_all(template['tags_re'], class_=template['classes_re'])
                 if len(elements) > 0:
                     segments[segment] = elements

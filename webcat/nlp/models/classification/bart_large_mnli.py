@@ -5,7 +5,7 @@ class BARTLarge():
     def __init__(self, init_labels=None) -> None:
         self.labels = ["drugs", "hacking", "fraud", "counterfeit goods", "cybercrime", "cryptocurrency"] if init_labels is None else init_labels
         self.model = pipeline("zero-shot-classification",
-                model="facebook/bart-large-mnli", framework="pt", device=0)
+                model="model_repository/facebook/bart-large-mnli", framework="pt", device=0)
         self.hypothesis_template = "Talks about {}."
         self.batch_size = 8
 
@@ -25,5 +25,3 @@ class BARTLarge():
         dataset = KeyDataset(dataset, "text")
         results = self.model(dataset, labels, multi_label=True, hypothesis_template=hypothesis_template, batch_size=batch_size)
         return [dict(zip(result["labels"], result["scores"])) for result in results]
-        
-
