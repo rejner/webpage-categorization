@@ -1,0 +1,4 @@
+
+
+class MissingOpenAIKeyError(Exception):
+    pass

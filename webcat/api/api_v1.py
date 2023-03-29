@@ -7,9 +7,9 @@ from database import db
 # enable CORS for localhost
 from flask_cors import CORS
 
-def create_app(config_filename, bare=False):
+def create_app(bare=False):
     app = Flask(__name__)
-    app.config.from_pyfile(config_filename)
+    app.config.from_envvar('FLASK_CONFIG')
     # enable CORS for localhost
     CORS(app)
     db.init_app(app)
