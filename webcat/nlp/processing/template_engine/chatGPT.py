@@ -6,17 +6,56 @@ import bs4
 from template_engine.base import TemplateEngine
 from template_engine.exceptions import MissingOpenAIKeyError
 import re
-import typing
 
 class ChatGPTTemplateEngine(TemplateEngine):
     """
         Uses OpenAI's ChatGPT API to generate templates from a given file.
+
+        The website is pre-processed using the following steps:
+        1. Extract all text from the website (using BeautifulSoup)
+        2. Each line of text is cut to a maximum length of MAX_LINE_LENGTH
+         - The hypothesis is that the headers are usually short and the message is usually long, but
+           to capture context for segmentation, we don't need full messages.
+        3. The text is cut to a maximum length of MAX_INPUT_LENGTH (due to API limitations)
+         - This is also fine, because it is sufficient to capture just a few posts.
+        4. The text is sent to the OpenAI API and parsed by ChatGPT model.
+         - The model is instructed to output a JSON array with the found segments "post-header", "post-author" and "post-message".
+        5. The JSON array is parsed and the segments are extracted.
+        6. The segments are grouped by type and the most common segment is selected as the template.
+         - For each identified segment, candidate elements are extracted based on text content of the segment
+           parsed by the model.
+         - The most common and repeated element is selected as the template for each segment.
+            - The candidate element must be present in all indentified segments of the same type.
+            - IE: If the model identified 3 segments of type "post-header", the template must be present in all 3 segments.
+         - We store node tag, its parent tag and its parent's parent tag as the template, together
+           with the node depth. These information are sufficient to identify the node in the HTML. 
+        7. The template is returned.
+
+        Example output of the model (3 posts/segments):
+        [
+            {
+                "post-header": "Who´s running this?",
+                "post-author": "ScReaper",
+                "post-message": "Step up, declare your role.The darkmarkets is bleeding and there´s no trust left... why should i sell my shit on your market and how can you guarantee you wont run with the wallets?"
+            },
+            {
+                "post-header": "Who´s running this?",
+                "post-author": "brickmaster",
+                "post-message": "Good Point, I'd like to hear a response to that question. I'm feeling kind of iffy about selling on this site especially since there are little to no vendors and no sign of customers."
+            },
+            {
+                "post-header": "Who´s running this?",
+                "post-author": "J0K3R",
+                "post-message": "ScReaper wrote:Step up, declare your role.The darkmarkets is bleeding and there´s no trust left... why should i sell my shit on your market and how can you guarantee you wont run with the wallets?I can't guarantee anything"
+            }
+        ]
     """
     def __init__(self) -> None:
         super().__init__()
         self.MAX_INPUT_LENGTH = 4000
         self.MAX_LINE_LENGTH = 256
         self.PROMPT_START = "Analyze the text I give you and output only a JSON array with the found segments \"post-header\", \"post-author\" and \"post-message\". Do not output anything else. I need you to segment this piece of text, a collection of forum posts. The value of the segment should be the exact matched text. Try to extract at least 3 posts. The input is:\n"
+        self.SYSTEM_PROMPT = "You are a server for analyzing text data, responding in JSON format."
         self.segment_types = ["post-header", "post-author", "post-message"]
         self.most_likely_tags = {
             "post-header": ["h1", "h2", "h3", "h4", "h5", "h6", "div", "span"],
@@ -58,7 +97,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
         payload = [
             {
                 "role": "system",
-                "content": "You are a server for analyzing text data, responding in JSON format."
+                "content": self.SYSTEM_PROMPT
             },
             {
                 "role": "user",
