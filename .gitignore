@@ -11,3 +11,8 @@ db/*
 .pytest_cache
 model_repository/*
 !model_repository/download.py
+playground/ChatGLM-6B
+playground/openai-quickstart-python
+webcat/.env
+webcat/model_repository/*
+!webcat/model_repository/download.py

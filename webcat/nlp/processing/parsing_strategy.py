@@ -313,6 +313,71 @@ class TemplatesStrategy(ParsingStrategy):
                 
         return texts, hashes
 
+class PureRegexStrategy(ParsingStrategy):
+    """
+        Parsing strategy which uses regexes to split the web page into meaningful parts.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.header_patterns = [
+            
+            re.compile(r'(?<=Posted by ).+?(?=\n)'),
+            re.compile(r'(?<=Posted on ).+?(?=\n)'),
+            re.compile(r'(?<=Reply by ).+?(?= \n)'),
+            re.compile(r'(?<=Reply on ).+?(?= \n)'),
+            # date and time
+            re.compile(r'\d{1,2} \w{3} \d{4} \d{1,2}:\d{2} [AP]M')
+        ]
+        self.content_patterns = [
+            re.compile(r'(?<=\n\n).+?(?=\n\n)'),
+            re.compile(r'(?<=wrote: ).+?(?=\n)'),
+        ]    
+        # compile templates
+
+    
+
+    def parse(self, content):
+        soup = BeautifulSoup(content, features="html.parser")
+        # if content is not parsable return None
+        texts = soup.text
+        # print(texts)
+        # extract patterns
+        headers = []
+        contents = []
+        for pattern in self.header_patterns:
+            headers.extend(re.findall(pattern, texts))
+        for pattern in self.content_patterns:
+            contents.extend(re.findall(pattern, texts))
+        # split into segments
+        texts = texts.split('\n')
+        texts = [t for t in texts if len(t) > 0]
+        hashes = [hashlib.md5(t.encode('utf-8')).hexdigest() for t in texts]
+        return texts, hashes
+        # match segments
+        segments = None
+
+        # Find all the tags in the Beautiful Soup object
+        if segments is None:
+            return None
+        
+        texts = []
+        hashes = []
+        content_elements = segments['post-body']
+        for el in content_elements:
+            text = self.process_text(el.text)
+            if text is None:
+                continue
+            if isinstance(text, list):
+                texts.extend(text) 
+                hashes.extend([hashlib.md5(t.encode('utf-8')).hexdigest() for t in text])
+            else:
+                texts.append(text)
+                hashes.append(hashlib.md5(text.encode('utf-8')).hexdigest())
+
+        assert len(texts) == len(hashes)
+                
+        return texts, hashes
+
 
 if __name__ == "__main__":
     # strategy = StoredTemplatesStrategy()
@@ -337,7 +402,7 @@ if __name__ == "__main__":
     #     </html>
     #     """
     #     ))
-    strategy = TemplatesStrategy()
+    strategy = PureRegexStrategy()
     # load file
     with open("/workspaces/webpage_categorization/data/bungee54-forums/bungee54-forums/2014-11-05/viewtopic.php_id=22&p=2", "r") as f:
         content = f.read()

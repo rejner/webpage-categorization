@@ -26,7 +26,7 @@ services:
       - /bin/sh
       - "-c"
       - |
-        python3 /workspace/model_repository/download.py
+        python3 /workspace/webcat/model_repository/download.py
         python3 /workspace/webcat/run_api.py
     deploy:
       resources:
