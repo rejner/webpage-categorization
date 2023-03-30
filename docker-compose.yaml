@@ -28,6 +28,8 @@ services:
       - |
         python3 /workspace/webcat/model_repository/download.py
         python3 /workspace/webcat/run_api.py
+      # python3 /workspace/webcat/wait.py
+        
     deploy:
       resources:
         reservations:

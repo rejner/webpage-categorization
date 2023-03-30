@@ -3,8 +3,8 @@ import os
 import openai
 import json
 import bs4
-from template_engine.base import TemplateEngine
-from template_engine.exceptions import MissingOpenAIKeyError
+from .base import TemplateEngine
+from .exceptions import MissingOpenAIKeyError
 import re
 
 class ChatGPTTemplateEngine(TemplateEngine):
@@ -62,14 +62,29 @@ class ChatGPTTemplateEngine(TemplateEngine):
             "post-author": ["div", "a"],
             "post-message": ["div", "p"]
         }
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        if self.api_key is None:
-            raise MissingOpenAIKeyError("OpenAI API key not found in environment variables.")
-        openai.api_key = self.api_key
+        self.setKey()
     
+    def setKey(self, key=None):
+        if key is None:
+            try:
+                key = os.environ["OPENAI_API_KEY"]
+            except KeyError:
+                raise MissingOpenAIKeyError("OpenAI API key not provided.")
+            
+        self.api_key = key
+        openai.api_key = self.api_key
+
     @property
     def name(self):
         return "ChatGPT Template Engine"
+    
+    @property
+    def requiresKey(self):
+        return True
+    
+    @property
+    def description(self):
+        return "Uses OpenAI's ChatGPT API to generate templates from a given file."
 
     def analyze_text(self, text):
         """
@@ -285,20 +300,32 @@ class ChatGPTTemplateEngine(TemplateEngine):
 
         # if all segments have the same amount of elements, then we can use the first element
         # we found a perfect template
+        perfect_match = False
         if all(len(el) == len(elements[self.segment_types[0]]) for el in elements.values()):
-            print("Perfect template found")
-            self.pretty_print(elements)
-            return elements
+            perfect_match = True
 
-        print("done")
+        template_proposal = {}
+        # template = {}
+        contents = {k: [el.text for el in v] for k, v in elements.items()}
+        obj_elements = []
+        for type, els in elements.items():
+            if len(els) == 0:
+                # template[type] = None
+                contents[type] = []
+            else:
+                element = TemplateElements(
+                    tag=els[0].name,
+                    parent_tag=els[0].parent.name,
+                    grandparent_tag=els[0].parent.parent.name,
+                    depth=self.calculate_element_depth(els[0]),
+                ).__dict__
+                element["type"] = type
+                obj_elements.append(element)
 
-        
-        # response = openai.Completion.create(
-        #     model="davinci",
-        #     prompt=html,
-        #     temperature=0.6,
-        # )
-        # return response.choices[0].text
+        template_proposal["perfect_match"] = perfect_match
+        template_proposal["contents"] = contents
+        template_proposal["elements"] = obj_elements
+        return template_proposal
 
     def pretty_print(self, template):
         """
@@ -324,6 +351,14 @@ class TemplateElements():
 
     def __hash__(self):
         return hash((self.tag, self.parent_tag, self.grandparent_tag, self.depth))
+    
+    # make TemplateElements json serializable
+    def __repr__(self):
+        return str(self.__dict__)
+    
+    def __str__(self):
+        return str(self.__dict__)    
+
 
 
 class Struct(object):

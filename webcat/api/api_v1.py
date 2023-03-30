@@ -23,7 +23,7 @@ def create_app(bare=False):
 
         api.add_resource(WebCatInteractive, '/api/v1/webcat_interactive')
         api.add_resource(WebCatFilesParser, '/api/v1/webcat_files_parser')
-        api.add_resource(WebCatTemplates, '/api/v1/webcat_templates')
+        api.add_resource(WebCatTemplates, '/api/v1/webcat_templates/<string:service>')
         api.add_resource(WebCatDataProvider, '/api/v1/webcat_data_provider')
     
     # define ping route

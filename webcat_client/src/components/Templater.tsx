@@ -182,12 +182,17 @@ function Templater() {
                             console.log(elements);
          
 
-                            fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates`, {
+                            fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/manager`, {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'
                                 },
-                                body: JSON.stringify(template)
+                                body: JSON.stringify(
+                                    {
+                                        template: template,
+                                        version: 1,
+                                    }
+                                )
                             })
                             .then(response => 
                                 response.json()
