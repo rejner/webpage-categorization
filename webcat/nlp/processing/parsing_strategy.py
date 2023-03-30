@@ -404,6 +404,7 @@ class TemplatesStrategy_v2(ParsingStrategy):
     def __init__(self, templates) -> None:
         super().__init__()
         self.segment_types = ['post-message', 'post-header', 'post-author']
+        self.ids_to_types = {k+1: v for k, v in enumerate(self.segment_types)}
         self.templates = templates
 
     def calculate_element_depth(self, element):
@@ -423,27 +424,27 @@ class TemplatesStrategy_v2(ParsingStrategy):
         for template in self.templates:
             tmp_segments = {k: None for k in self.segment_types}
             segments_match = []
-            for template_element in template['elements']:
-                segment = template_element['type']
-                elements = soup.findAll(template_element['tag'])
+            for template_element in template.elements:
+                segment = self.ids_to_types[template_element.type_id]
+                elements = soup.findAll(template_element.tag)
                 if elements is None:
                     segments_match.append(False)
                     break # template does not match
 
                 # filter elements by parent tag
-                elements = list(filter(lambda x: x.parent.name == template_element['parent_tag'], elements))
+                elements = list(filter(lambda x: x.parent.name == template_element.parent_tag, elements))
                 if len(elements) == 0:
                     segments_match.append(False)
                     break
 
                 # filter elements by grandparent tag
-                elements = list(filter(lambda x: x.parent.parent.name == template_element['grandparent_tag'], elements))
+                elements = list(filter(lambda x: x.parent.parent.name == template_element.grandparent_tag, elements))
                 if len(elements) == 0:
                     segments_match.append(False)
                     break
 
                 # filter elements by depth
-                elements = list(filter(lambda x: self.calculate_element_depth(x) == template_element['depth'], elements))
+                elements = list(filter(lambda x: self.calculate_element_depth(x) == template_element.depth, elements))
                 if len(elements) == 0:
                     segments_match.append(False)
                     break
@@ -511,8 +512,8 @@ class TemplatesStrategy_v2(ParsingStrategy):
             hsh = hashlib.md5(MD_text.encode('utf-8')).hexdigest()
             content_objects.append({
                 "message": m_text,
-                "author": a_text,
-                "header": h_text,
+                "author": h_text,
+                "header": a_text,
                 "hash": hsh,
             })
 

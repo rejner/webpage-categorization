@@ -82,6 +82,7 @@ function TemplaterAuto() {
         .then(data => {
             if (data.error) {
                 alert(data.error);
+                setIsParsing(false);
                 return;
             }
             data = JSON.parse(data);
@@ -115,7 +116,9 @@ function TemplaterAuto() {
                 version: 2,
             }),
         })
-        .then(response => response.json(), error => console.log("Error: " + error))
+        .then(response => response.json(), error => {
+            console.log("Error: " + error);
+        })
         .then(data => {
             if (data.error) {
                 alert(data.error);

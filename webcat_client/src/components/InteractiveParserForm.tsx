@@ -21,7 +21,7 @@ function InteractiveParserForm() {
     
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        console.log(`Hypothesis Template: ${hypothesisTemplate} Labels: ${labels}`);
+        console.log(`Hypothesis Template: ${hypothesisTemplate} Labels: ${labels}, Input: ${input}`);
 
         // Construct the request body, which is a JSON object
         const requestBody = {

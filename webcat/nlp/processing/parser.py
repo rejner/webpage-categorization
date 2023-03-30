@@ -6,7 +6,7 @@ import os
 import joblib
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from parsing_strategy import HighestChildrenFrequencyStrategy
-from parsing_strategy import StoredTemplatesStrategy, TemplatesStrategy
+from parsing_strategy import StoredTemplatesStrategy, TemplatesStrategy, TemplatesStrategy_v2
 from parsing_errors import NoParsableContentError
 
 url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
@@ -24,7 +24,7 @@ class WebCatParser():
         self.format = "%(asctime)s: %(message)s"
         logging.basicConfig(format=self.format, level=logging.INFO, datefmt="%H:%M:%S")
         self.timeout = timeout
-        self.strategy = TemplatesStrategy(templates)
+        self.strategy = TemplatesStrategy_v2(templates)
         self.fallback_strategy = HighestChildrenFrequencyStrategy()
 
     def parse_files(self, file_paths:list):
@@ -54,13 +54,19 @@ class WebCatParser():
         try:
             with open(file_path) as fd:
                 contents = fd.read()
-                chunks, hashes = self.strategy.parse(contents)
-                if not chunks:
-                    raise NoParsableContentError("No parsable content found.")
+                chunks = self.strategy.parse(contents)
+                # if not chunks:
+                    # chunks = self.fallback_strategy.parse(contents)
+                for chunk in chunks:
+                    chunk['file_path'] = str(file_path)
+                return chunks
+                # chunks, hashes = self.strategy.parse(contents)
+                # if not chunks:
+                #     raise NoParsableContentError("No parsable content found.")
                 
-                # self.process_all_tables(contents)
-                chunks  = [self.clear_text(chunk) for chunk in chunks]
-                return (str(file_path), (chunks, hashes)) 
+                # # self.process_all_tables(contents)
+                # chunks  = [self.clear_text(chunk) for chunk in chunks]
+                # return (str(file_path), (chunks, hashes)) 
             
         except Exception as e:
             logging.info(f"No parsable content found in file: {file_path}")

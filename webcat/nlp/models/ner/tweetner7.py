@@ -5,8 +5,8 @@ from transformers.pipelines import PIPELINE_REGISTRY
 
 class TweetNER7():
     def __init__(self) -> None:
-        self.tokenizer = AutoTokenizer.from_pretrained("model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")
-        self.model = AutoModelForTokenClassification.from_pretrained("model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")
+        self.tokenizer = AutoTokenizer.from_pretrained("webcat/model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")
+        self.model = AutoModelForTokenClassification.from_pretrained("webcat/model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")
         self.model.to("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to("cuda")
         self.model.eval()
