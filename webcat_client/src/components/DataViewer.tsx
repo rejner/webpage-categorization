@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stack, Container, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
 import { AppContext } from '../index';
-import {Content, entity_color_mapping} from '../models/Content';
+import {Content, Content_v2, Entity, entity_color_mapping} from '../models/Content';
 
 interface WebCatFilters {
     categories: string[],
@@ -21,7 +21,7 @@ interface WebCatInfo {
 function DataViewer() {
     const [categories, setCategories] = React.useState() as [string[], (categories: string[]) => void];
     const [entity_types, setEntityTypes] = React.useState() as [string[], (entity_types: string[]) => void];
-    const [content, setContent] = React.useState() as [Content[], (content: Content[]) => void];
+    const [content, setContent] = React.useState() as [Content_v2[], (content: Content_v2[]) => void];
     const [isLoading , setIsLoading] = React.useState(false);
     const [filter, setFilter] = React.useState<WebCatFilters>({
         categories: ['all'],
@@ -83,15 +83,33 @@ function DataViewer() {
                 alert(data.error)
                 return;
             }
-            let contents: Content[] = data;
+            let contents: Content_v2[] = data;
             for (let c of contents) {
-                if (c.entities.length === 0) {
-                    continue;
+                let merged_text = "";
+                let merged_entities: Entity[] = [];
+                let merged_categories: { [key: string]: number } = {};
+                for (let m of c.messages) {
+                    merged_text += m.text + " ";
+                    merged_entities = merged_entities.concat(m.entities);
+                    for (let cat of m.categories) {
+                        let key = cat.category.name;
+                        if (key in merged_categories) {
+                            merged_categories[key] = Math.max(merged_categories[key], cat.confidence);
+                        } else {
+                            merged_categories[key] = cat.confidence;
+                        }
+                    }
                 }
-                for (let entity of c.entities) {
+
+                for (let entity of merged_entities) {
                     // replace entity with <span> tag
-                    c.text = c.text.replace(entity.name, `<span class='entity ${entity.type.name} ${entity_color_mapping[entity.type.name]} text-light p-1 rounded'>${entity.name}</span>`);
+                    merged_text = merged_text.replace(entity.name, `<span class='${entity_color_mapping[entity.type.name]} text-light p-1 rounded'>${entity.name}</span>`);
                 }
+                // merge categories by taking the maximum of each category
+                console.log(merged_categories);
+                c.merged_categories = merged_categories;
+                c.merged_text = merged_text;
+            
             }
             setContent(data);
         }, error => console.log("Error: " + error)
@@ -265,7 +283,7 @@ function DataViewer() {
                                 
                                 <Container className='text-light mb-3'> 
                                     <Row>
-                                        <ExpandableText text={item.file!} className='text-light ml-3' />   
+                                        <ExpandableText text={item.file.path} className='text-light ml-3' />   
                                         {/* Delete button, column only of button size pushing it most to the right */}
                                         <Col xs='auto'>
                                             <Button className="mt-3" variant="danger" onClick={() => {
@@ -275,11 +293,9 @@ function DataViewer() {
                                     </Row>
                                 </Container>
                                 
-                
-                                
                                 <Container className='text-light mb-3'> <h3 className='mb-3'>Categories:</h3> {
-                                Object.keys(item.categories).map((key) => {
-                                    var score = item.categories[key];
+                                Object.keys(item.merged_categories).map((key) => {
+                                    var score = item.merged_categories[key];
                                     if (score < filter.cat_threshold) {
                                         return;
                                     }
@@ -303,7 +319,9 @@ function DataViewer() {
                                 
                                 )}
                                 </Container>
-                                <Container className='text-light mb-5'> <h3>Text with Named Entities:</h3><div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.text}} /></Container>
+                                <Container className='text-light mb-3'> <h3 className='mb-3'>Header:</h3> <div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.header}} /></Container>
+                                <Container className='text-light mb-3'> <h3 className='mb-3'>Author:</h3> <div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.author}} /></Container>
+                                <Container className='text-light mb-5'> <h3>Text with Named Entities:</h3><div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.merged_text}} /></Container>
                             </Container>
 
                             )

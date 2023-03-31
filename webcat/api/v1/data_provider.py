@@ -2,6 +2,7 @@ from flask_restful import Resource, reqparse, request
 from database import db
 from models_extension import *
 import time
+from sqlalchemy.orm import contains_eager
 
 class WebCatDataProvider(Resource):
     """
@@ -79,34 +80,70 @@ class WebCatDataProvider(Resource):
         file_names = args.get('file_names', [])
         file_paths = args.get('file_paths', [])
 
-        # construct base query for filtering
-        query = db.session.query(Content)
+        # # construct base query for filtering
+        # query = db.session.query(Content)
 
+        # # apply filters for categories and entities
+        # if categories and 'all' not in categories:
+        #     category_query = query.join(ContentCategory).join(Category).filter(Category.name.in_(categories))
+        #     if cat_threshold > 0:
+        #         category_query = category_query.filter(ContentCategory.confidence >= cat_threshold)
+        #     query = query.intersect(category_query)
+
+        # if entity_types and 'all' not in entity_types:
+        #     entity_query = query.join(Content.entities).join(NamedEntity.type).filter(EntityType.name.in_(entity_types))
+        #     if ent_threshold > 0:
+        #         entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
+        #     query = query.intersect(entity_query)
+
+        # # execute the query and return the results
+        # return query.all()
+
+        # query = db.session.query(Content_v2)
+        # query = query.join(ContentMessage_v2).join(Message_v2).join(MessageCategory_v2, Message_v2.id == MessageCategory_v2.message_id).join(Category, MessageCategory_v2.category_id == Category.id)
+        # # apply filters for categories and entities
+        # if categories and 'all' not in categories:
+        #     # filter by categories
+        #     category_query = query.join(ContentMessage_v2).join(Message_v2).join(MessageCategory_v2, Message_v2.id == MessageCategory_v2.message_id).join(Category, MessageCategory_v2.category_id == Category.id).filter(Category.name.in_(categories))
+        #     if cat_threshold > 0:
+        #         category_query = category_query.filter(MessageCategory_v2.confidence >= cat_threshold)
+        #     query = query.join(ContentMessage_v2).join(Message_v2).options(contains_eager(Content_v2.messages)).intersect(category_query)
+
+        # if entity_types and 'all' not in entity_types:
+        #     # filter by entity types
+        #     entity_query = query.join(ContentMessage_v2).join(Message_v2).join(MessageEntity_v2, Message_v2.id == MessageEntity_v2.message_id).join(NamedEntity, MessageEntity_v2.entity_id == NamedEntity.id).join(EntityType, NamedEntity.type_id == EntityType.id).filter(EntityType.name.in_(entity_types))
+        #     if ent_threshold > 0:
+        #         entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
+        #     query = query.join(ContentMessage_v2).join(Message_v2).options(contains_eager(Content_v2.messages)).intersect(entity_query)
+
+        # # query = query.join(ContentMessage_v2).join(Content_v2).join(Message_v2).options(contains_eager(Content_v2.messages))
+
+        # # execute the query and return the results
+        # return query.all()
+
+        query = db.session.query(Content_v2)
+        query = query.join(ContentMessage_v2).join(Message_v2).join(MessageCategory_v2, Message_v2.id == MessageCategory_v2.message_id).join(Category, MessageCategory_v2.category_id == Category.id)
         # apply filters for categories and entities
         if categories and 'all' not in categories:
-            category_query = query.join(ContentCategory).join(Category).filter(Category.name.in_(categories))
+            # filter by categories
+            category_query = query.filter(Category.name.in_(categories))
             if cat_threshold > 0:
-                category_query = category_query.filter(ContentCategory.confidence >= cat_threshold)
+                category_query = category_query.filter(MessageCategory_v2.confidence >= cat_threshold)
             query = query.intersect(category_query)
 
         if entity_types and 'all' not in entity_types:
-            entity_query = query.join(Content.entities).join(NamedEntity.type).filter(EntityType.name.in_(entity_types))
+            # filter by entity types
+            entity_query = query.join(ContentMessage_v2).join(Message_v2, Message_v2.id == ContentMessage_v2.message_id).join(MessageEntity_v2, MessageEntity_v2.message_id == Message_v2.id).join(NamedEntity, NamedEntity.id == MessageEntity_v2.entity_id).join(EntityType, EntityType.id == NamedEntity.type_id).filter(EntityType.name.in_(entity_types))
             if ent_threshold > 0:
                 entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
             query = query.intersect(entity_query)
 
-        # apply filters for entity values, file names, and file paths
-        # if entity_values:
-        #     query = query.filter(Content.content_text.contains(entity_values))
-        # if file_names:
-        #     query = query.filter(Content.file_name.in_(file_names))
-        # if file_paths:
-        #     query = query.filter(Content.file_path.in_(file_paths))
+        # query = query.join(ContentMessage_v2).join(Content_v2).join(Message_v2).options(contains_eager(Content_v2.messages))
 
         # execute the query and return the results
         return query.all()
 
-    def serialize_content(self, content: Content):
+    def serialize_content(self, content: Content_v2):
         cat_names = [category.category.name for category in content.categories]
         cat_confs = [category.confidence for category in content.categories]
         # create a dictionary of the categories and their confidence
@@ -141,7 +178,7 @@ class WebCatDataProvider(Resource):
         filtered_data = self.process_request(args)
         end_2 = time.time()
         print("Time for process_request: ", end_2 - start_2)
-        return [self.serialize_content(content) for content in filtered_data]
+        return [data.json_serialize() for data in filtered_data]
 
     # delete will be sent as a delete request with id in the url
     def delete(self):

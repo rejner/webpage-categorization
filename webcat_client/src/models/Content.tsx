@@ -30,15 +30,37 @@ export const entity_color_mapping: any = {
     "creative_work": 'bg-dark',
 }
 
-export interface Content_v2 {
-    'categories': { [key: string]: number }[];
-    'entities': [Entity[]],
-    'message': string[],
-    'file_path': string,
+export interface File_v2 {
     'id': number,
+    'name': string,
+    'path': string,
+}
+
+export interface Message_v2 {
+    'id': number,
+    'text': string,
+    'categories': Category_v2[],
+    'entities': Entity[],
+}
+
+export interface Category_v2 {
+    'id': number,
+    'message_id': number,
+    'category_id': number,
+    'confidence': number,
+    'category': {
+        'id': number,
+        'name': string,
+    }
+}
+
+export interface Content_v2 {
+    'id': number,
+    'file': File_v2,
     'hash': string,
     'header': string,
     'author': string,
+    'messages': Message_v2[],
     'merged_text': string,
     'merged_categories': { [key: string]: number },
 }

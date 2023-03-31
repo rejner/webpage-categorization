@@ -18,7 +18,7 @@ function FilesParserForm() {
     const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency,delivery");
     const [path, setPath] = React.useState("");
     const [useRecursive, setUseRecursive] = React.useState(false);
-    const [content, setContent] = React.useState() as [[Content], any];
+    // const [content, setContent] = React.useState() as [[Content], any];
     const [content_v2, setContent_v2] = React.useState() as [[Content_v2], any];
     const [stats, setStats] = React.useState() as FilesParserStats | any;
     const [openFileSelector, { filesContent, loading, errors, plainFiles, clear }] = useFilePicker({
@@ -56,35 +56,34 @@ function FilesParserForm() {
                 return;
             }
             console.log('Success:', data);
-            let contents = data.contents;
+            let contents: Content_v2[] = data.contents;
             let stats = data.stats;
             console.log('Success:', stats);
             // console.log('Success:', content);
             for (let c of contents) {
                 let merged_text = "";
-                for (let m of c.message) {
-                    merged_text += m + " ";
-                }
                 let merged_entities: Entity[] = [];
-                for (let e of c.entities) {
-                    merged_entities = merged_entities.concat(e);
+                let merged_categories: { [key: string]: number } = {};
+                for (let m of c.messages) {
+                    merged_text += m.text + " ";
+                    merged_entities = merged_entities.concat(m.entities);
+                    for (let cat of m.categories) {
+                        let key = cat.category.name;
+                        if (key in merged_categories) {
+                            merged_categories[key] = Math.max(merged_categories[key], cat.confidence);
+                        } else {
+                            merged_categories[key] = cat.confidence;
+                        }
+                    }
                 }
-                console.log(merged_entities);
+
                 for (let entity of merged_entities) {
                     // replace entity with <span> tag
                     merged_text = merged_text.replace(entity.name, `<span class='${entity_color_mapping[entity.type.name]} text-light p-1 rounded'>${entity.name}</span>`);
                 }
                 // merge categories by taking the maximum of each category
-                let merged_categories: { [key: string]: number } = {};
-                for (let categories of c.categories) {
-                    for (let key in categories) {
-                        if (key in merged_categories) {
-                            merged_categories[key] = Math.max(merged_categories[key], categories[key]);
-                        } else {
-                            merged_categories[key] = categories[key];
-                        }
-                    }
-                }
+                
+                
 
                 console.log(merged_categories);
                 c.merged_categories = merged_categories;
@@ -159,45 +158,6 @@ function FilesParserForm() {
                     </Container>
                 }
                 {
-                    content &&
-                    content.map((item) => {
-                        return (
-                            <Container className='text-light mb-3 mt-3'>
-                                {/*an empty separator line*/}
-                                <div className='border rounded text-light mb-5'></div>
-                                {/* filename */}
-                                <Container className='text-light mb-3'> <h3>Path to file:</h3><div className='text-light mt-3'/>{item.file}</Container>
-                                <Container className='text-light mb-3'> <h3 className='mb-3'>Categories:</h3> {
-                                Object.keys(item.categories).map((key) => {
-                                    var score = item.categories[key];
-                                    var color = 'bg-danger';
-                                    if (score > 0.5) {
-                                        color = 'bg-success';
-                                    }
-                                    else if (score > 0.25) {
-                                        color = 'bg-warning';
-                                    }
-                                    // predefine className and add color to it
-                                    var className = 'text-light m-1 p-1 rounded w-50 ' + color;
-                                    return (
-                                    // set background color based on score
-                                    <Row className={className} style={{backgroundColor: color}}> 
-                                        <Col>{key}</Col>
-                                        <Col>{score.toFixed(2)}</Col>
-                                    </Row>
-                                    );
-                                }
-                                
-                                )}
-                                </Container>
-                                <Container className='text-light mb-5'> <h3>Text with Named Entities:</h3><div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.text}} /></Container>
-                            </Container>
-
-                            )
-                        }
-                    )
-                }
-                {
                     content_v2 &&
                     content_v2.map((item) => {
                         return (
@@ -205,7 +165,7 @@ function FilesParserForm() {
                                 {/*an empty separator line*/}
                                 <div className='border rounded text-light mb-5'></div>
                                 {/* filename */}
-                                <Container className='text-light mb-3'> <h3>Path to file:</h3><div className='text-light mt-3'/>{item.file_path}</Container>
+                                <Container className='text-light mb-3'> <h3>Path to file:</h3><div className='text-light mt-3'/>{item.file.path}</Container>
                                 <Container className='text-light mb-3'> <h3 className='mb-3'>Categories:</h3> {
                                 Object.keys(item.merged_categories).map((key) => {
                                     var score = item.merged_categories[key];

@@ -11,3 +11,8 @@ from db_models.v2_template import Template_v2
 from db_models.v2_template_element import TemplateElement_v2
 from db_models.v2_element import Element_v2
 from db_models.v2_element_type import ElementType_v2
+from db_models.v2_content import Content_v2
+from db_models.v2_content_message import ContentMessage_v2
+from db_models.v2_message import Message_v2
+from db_models.v2_message_category import MessageCategory_v2
+from db_models.v2_message_entity import MessageEntity_v2
