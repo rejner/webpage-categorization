@@ -271,10 +271,7 @@ class WebCatPipeline():
         #     "author": str,
         # }
         # flatten the list of contents
-        contents = [content_obj for list_of_objects in contents for content_obj in list_of_objects]
-        int_to_path = {i: content_obj['file_path'] for i, content_obj in enumerate(contents)}
-        # invert the mapping to create a path to integer mapping
-        path_to_int = {v: k for k, v in int_to_path.items()}
+        # contents = [content_obj for list_of_objects in contents for content_obj in list_of_objects]
 
         # filter any hashes that are already in the database
         hashes = [content['hash'] for content in contents]
@@ -305,81 +302,71 @@ class WebCatPipeline():
         # and then to the original content object
 
         # create a message: index mapping
-        message_index = {}
         messages = []
         for i, content in enumerate(contents_filtered):
-            for j, message in enumerate(content['message']):
-                message_index[(i, j)] = message
+            for message in content['message']:
                 messages.append({
                     "message": message,
                     "content_row": i,
-                    "content_col": j,
                     "hash": content['hash'],
                     "file_path": content['file_path']
                 })
 
 
-        hashes = [content['hash'] for content in contents_filtered]
-        files = [content['file_path'] for content in contents_filtered]
+        # hashes = [content['hash'] for content in contents_filtered]
+        # files = [content['file_path'] for content in contents_filtered]
 
         logging.warn(f"Constructing dataset from {len(contents_filtered)} content chunks...")
 
-        dataset = datasets.Dataset.from_list([{ "text": message['message'], "content_row": message['content_row'], "content_col": message['content_col'], "hash": message['hash'], "file_path": message['file_path']} for message in messages])
+        dataset = datasets.Dataset.from_list([{ "text": message['message'], "content_row": message['content_row'], "hash": message['hash'], "file_path": message['file_path']} for message in messages])
         
-        objects = []
+        processed_objects = []
         stats = {
             "total_contents": len(contents),
             "total_messages": len(messages),
             "processed_messages": 0,
+            "processed_contents": 0,
             "duplicate_content": len(contents) - len(contents_filtered),
             "error": 0
         }
 
-        # process database by batches of 32
-        batch_size = 32
-        for i in range(0, len(messages), batch_size):
-            try:
-                logging.info(f"Processing batch {i} to {min(i + batch_size, len(messages))} of {len(messages)}")
-                dataset_batch = dataset.select(range(i, min(i + batch_size, len(messages))))
-                hashes_batch = dataset_batch["hash"]
-                files_batch = dataset_batch["file_path"]
-                categories, entities, texts = self.analyzer.analyze_dataset(dataset_batch, **kwargs)
-                # --------------------------------
-                # TODO: We need to somehow split batches in a clever way so no oprhan messages get processed in the next batch
-                # now we need to collect the results back to the original content object
-                # --------------------------------
-
-                if categories and entities:
-                    # for category, entity, text, hash, file in zip(categories, entities, texts, hashes_batch, files_batch):
-                    contents = self.save_content_to_db_batch(files_batch, categories, entities, texts, hashes_batch)
-                    if contents == None:
-                        stats["error"] += 1
-                        continue
-
-                    for j, content in enumerate(contents):
-                        if content == None:
-                            stats["error"] += 1
-                            continue
-                        cat_names = [category.category.name for category in content.categories]
-                        cat_confs = [category.confidence for category in content.categories]
-                        # create a dictionary of the categories and their confidence
-                        cats = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
-                        objects.append({
-                            "hash": hashes_batch[j],
-                            "file": files_batch[j],
-                            "categories": cats,
-                            "entities": [entity.json_serialize() for entity in content.entities],
-                            "text": content.text,
-                        })
-                        stats["processed"] += 1
-
-            except Exception as e:
-                logging.error(f"Error processing batch {i} to {min(i + batch_size, len(contents_filtered))} of {len(contents_filtered)}")
-                logging.error(e)
-                continue
+        # add the categories and entities to the filtered contents andd initialize with []
+        for content in contents_filtered:
+            content['categories'] = []
+            content['entities'] = []
 
 
-        return objects, stats
+        # process entire file
+        try:
+            logging.info(f"Processing {len(messages)} messages...")
+            rows = dataset['content_row']
+            categories, entities, texts = self.analyzer.analyze_dataset(dataset, **kwargs)
+            if not categories or not entities:
+                return [], stats
+            
+            for i, (category, entity) in enumerate(zip(categories, entities)):
+                contents_filtered[rows[i]]['categories'].append(category)
+                contents_filtered[rows[i]]['entities'].append([{'name': e[0], 'type': {'name': e[1]}} for e in entity])
+                stats["processed_messages"] += 1
+
+            # contents = self.save_content_to_db_v2(contents_filtered)
+
+
+            for i, content in enumerate(contents):
+                if content == None:
+                    stats["error"] += 1
+                    continue
+                processed_objects.append(content)
+                stats["processed_contents"] += 1
+
+            
+
+
+        except Exception as e:
+            logging.error(f"Error processing file: {content['file_path']}")
+            logging.error(e)
+
+        return processed_objects, stats
 
     def process_files_as_dataset(self, files_path:list, **kwargs):
         start = time.time()
@@ -387,9 +374,24 @@ class WebCatPipeline():
         self.initialize_parser()
         self.load_categories(labels)
         self.load_entity_types()
-        contents = self.parser.parse_files(files_path,)
-        # objects, stats = self.process_v1_data(contents, **kwargs)
-        objects, stats = self.process_v2_data(contents, **kwargs)
+        files_contents = self.parser.parse_files(files_path)
+
+        analyzed_objects = []
+        stats_all = {
+            "total_contents": 0,
+            "total_messages": 0,
+            "processed_messages": 0,
+            "processed_contents": 0,
+            "duplicate_content": 0,
+            "error": 0
+        }
+        for file_content in files_contents:
+            logging.info(f"Processing file: {file_content[0]['file_path']}")
+            objects, stats = self.process_v2_data(file_content, **kwargs)
+            analyzed_objects.extend(objects)
+            for key in stats_all.keys():
+                stats_all[key] += stats[key]
+
         end = time.time()
         print("Time to process files [Dataset]: ", end - start)
         return objects, stats

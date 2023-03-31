@@ -29,3 +29,16 @@ export const entity_color_mapping: any = {
     "corporation": 'bg-danger',
     "creative_work": 'bg-dark',
 }
+
+export interface Content_v2 {
+    'categories': { [key: string]: number }[];
+    'entities': [Entity[]],
+    'message': string[],
+    'file_path': string,
+    'id': number,
+    'hash': string,
+    'header': string,
+    'author': string,
+    'merged_text': string,
+    'merged_categories': { [key: string]: number },
+}
