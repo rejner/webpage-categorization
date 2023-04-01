@@ -1,4 +1,5 @@
 import abc
+from collections import Counter
 from bs4 import BeautifulSoup
 import re
 import json
@@ -423,35 +424,52 @@ class TemplatesStrategy_v2(ParsingStrategy):
         segments = {k: None for k in self.segment_types}
         for template in self.templates:
             tmp_segments = {k: None for k in self.segment_types}
-            segments_match = []
+            segments_match = True
             for template_element in template.elements:
                 segment = self.ids_to_types[template_element.type_id]
                 elements = soup.findAll(template_element.tag)
                 if elements is None:
-                    segments_match.append(False)
+                    segments_match = False
                     break # template does not match
 
                 # filter elements by parent tag
                 elements = list(filter(lambda x: x.parent.name == template_element.parent_tag, elements))
                 if len(elements) == 0:
-                    segments_match.append(False)
+                    segments_match = False
                     break
 
                 # filter elements by grandparent tag
                 elements = list(filter(lambda x: x.parent.parent.name == template_element.grandparent_tag, elements))
                 if len(elements) == 0:
-                    segments_match.append(False)
+                    segments_match = False
                     break
 
                 # filter elements by depth
                 elements = list(filter(lambda x: self.calculate_element_depth(x) == template_element.depth, elements))
                 if len(elements) == 0:
-                    segments_match.append(False)
+                    segments_match = False
                     break
+                
+                isinstance
+                # all elements must have the same next element tag
+                # some elements may not have a next element, but keep track of nones
+                elements_next_type = ['string' if isinstance(e.next, str) else 'element' for e in elements]
+                next_element_counts = Counter(elements_next_type)
+                # count the number of each next element
+                
+                # get the most common next element
+                most_common_next_element = next_element_counts.most_common(1)[0][0]
+                elements = [e for e, t in zip(elements, elements_next_type) if t == most_common_next_element]
+                # filter elements by most common next element
+                # elements = list(filter(lambda x: x.next.tag == most_common_next_element.tag, elements))
+                if len(elements) == 0:
+                    segments_match = False
+                    break
+
                 
                 tmp_segments[segment] = elements
                 
-            if all(segments_match):
+            if segments_match:
                 segments = tmp_segments
                 break
         
@@ -470,7 +488,7 @@ class TemplatesStrategy_v2(ParsingStrategy):
         # Remove all the leading and trailing spaces
         text = text.strip()
         return text
-
+    
     def parse(self, content):
         soup = BeautifulSoup(content, features="html.parser")
         # if content is not parsable return None
@@ -510,6 +528,8 @@ class TemplatesStrategy_v2(ParsingStrategy):
                 MD_text += m_text + "\n"
 
             hsh = hashlib.md5(MD_text.encode('utf-8')).hexdigest()
+            # TODO: author and header swapped, this seem to be rooted in the templates
+            # For now, it is ok, but it should be fixed
             content_objects.append({
                 "message": m_text,
                 "author": h_text,
@@ -518,8 +538,6 @@ class TemplatesStrategy_v2(ParsingStrategy):
             })
 
         return content_objects
-
-
 
 
 if __name__ == "__main__":

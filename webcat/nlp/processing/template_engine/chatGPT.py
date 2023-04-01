@@ -52,10 +52,12 @@ class ChatGPTTemplateEngine(TemplateEngine):
     """
     def __init__(self) -> None:
         super().__init__()
-        self.MAX_INPUT_LENGTH = 4000
-        self.MAX_LINE_LENGTH = 256
-        self.PROMPT_START = "Analyze the text I give you and output only a JSON array with the found segments \"post-header\", \"post-author\" and \"post-message\". Do not output anything else. I need you to segment this piece of text, a collection of forum posts. The value of the segment should be the exact matched text. Try to extract at least 3 posts. The input is:\n"
-        self.SYSTEM_PROMPT = "You are a server for analyzing text data, responding in JSON format."
+        self.MAX_INPUT_LENGTH = 512
+        self.MAX_LINE_LENGTH = 64
+        self.START_OFFSET = 256
+        # self.PROMPT_START = "Analyze the text I give you and output only a JSON array with the found segments \"post-header\", \"post-author\" and \"post-message\". I need you to segment this raw text extracted from HTML of a forum. Each newline character delimiters a logical section of a DOM tree. The value of the segment should be the exact matched text. Try to extract at least 3 posts. The input is:\n\n"
+        self.PROMPT_START = "I want you to act as a data extraction tool and extract post titles, post authors, and post messages from raw text extracted from HTML code of a forum website. The raw text is separated by newline characters and the desired output is a JSON array of objects in the format [{\"post-title\": \"some title\", \"post-author\": \"some author\", \"post-message\": \"some message\"}]. Your task is to segment the raw text and extract the required information from each segment. Remember that each segment contains only one part of the required information. The input is:\n\n"
+        self.SYSTEM_PROMPT = "You are a server for analyzing text data, responding in JSON array format according to instructions."
         self.segment_types = ["post-header", "post-author", "post-message"]
         self.most_likely_tags = {
             "post-header": ["h1", "h2", "h3", "h4", "h5", "h6", "div", "span"],
@@ -119,20 +121,77 @@ class ChatGPTTemplateEngine(TemplateEngine):
                 "content": prompt
             }
         ]
-        response = RESPONSE
-        # response = openai.ChatCompletion.create(
-        #     model="gpt-3.5-turbo",
-        #     messages=payload,
-        # )
-        # print("Response:")
-        # print("-"*100)
-        # print(response)
-        # print("-"*100)
+
+        # response = RESPONSE_TOTRUGA_2
+        # response = RESPONSE
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=payload,
+            temperature=0.1,
+        )
+        print("Response:")
+        print("-"*100)
+        print(response)
+        print("-"*100)
 
         # load dictionary into object
         response = Struct(response)
         output = response.choices[0].message.content
+
+        
+        # output = "Here is the output in the required format:\n\n[{\"post-title\": \"Does anyone need samples? I'm an old vendor from S\", \"post-author\": \"SupremeSmoke\", \"post-message\": \"I used to be an avid member of Silk road 1 but after losing ever\"}]"
+        output = self.verify_output(output)
+        
+        # return output
         return json.loads(output)
+
+    def verify_output(self, output:str):
+       
+        # verfity that output starts and ends as JSON array should
+        is_json_array = re.compile(r"(\[.*?\])", re.DOTALL)
+        if not is_json_array.match(output):
+            tmp_output = output
+            if not tmp_output.startswith("["):
+                # try to iterate from the start to reach '['
+                for i in range(len(tmp_output)):
+                    if tmp_output[i] == "[":
+                        tmp_output = tmp_output[i:]
+                        break
+
+            if not tmp_output.endswith("]"):
+                # try to iterate from the end to reach ']'
+                for i in range(len(tmp_output)):
+                    if tmp_output[-i] == "]":
+                        tmp_output = tmp_output[:-(i-1)]
+                        break
+                
+            tmp_output = tmp_output.strip()
+            tmp_output = tmp_output.strip(".,;:!?")
+            # now try to verify
+            if is_json_array.match(tmp_output):
+                output = tmp_output
+                return output
+
+            tmp_output = output
+            # try to repair
+            tmp_output =  tmp_output.strip()
+            tmp_output =  tmp_output.strip(".,;:!?")
+
+            # ensure that output ends with ], strip all other characters
+            if not  tmp_output.endswith("]"):
+                 tmp_output =  tmp_output + "]"
+
+            # ensure that output starts with [
+            if not  tmp_output.startswith("["):
+                 tmp_output = "[" +  tmp_output
+
+            if not is_json_array.match( tmp_output):
+                raise ValueError("Output is not a valid JSON array, nor can it be repaired.")
+
+            output =  tmp_output
+
+        return output
+
 
     def parse_html(self, html_file):
         """
@@ -141,8 +200,31 @@ class ChatGPTTemplateEngine(TemplateEngine):
         with  open(html_file, 'r') as f:
             html = f.read()
         soup = bs4.BeautifulSoup(html, "html.parser")
+        # remove all scripts, head, style, meta, link, title, etc.
+        for tag in soup.find_all(["script", "head", "style", "meta", "link", "title", "noscript", "iframe", "svg", "path", "img", "button", "input", "form", "footer", "header", "nav", "section"]):
+            tag.decompose()
+
         text = soup.get_text()
-        text = text.split("\n")
+        # split text into lines by newlines and tabs
+        text = re.split(r"\n|\t", text)
+        # keep at maximum one empty line between lines
+        # simple automata
+        last_line_empty = False
+        for i in range(len(text)):
+            if text[i] == " ":
+                text[i] = ""
+            if text[i] == "":
+                if last_line_empty:
+                    text[i] = None
+                else:
+                    last_line_empty = True
+            else:
+                last_line_empty = False
+        text = [x for x in text if x is not None]
+
+        # it helps to start at a later point in the text to eliminate navigation and other stuff
+        if self.START_OFFSET > 0 and len(text)*2 > self.START_OFFSET:
+            text = text[self.START_OFFSET:]
 
         # iterate through text and count the number of characters
         # if the number of characters exceeds the max input length, then cut the text
@@ -178,14 +260,20 @@ class ChatGPTTemplateEngine(TemplateEngine):
                 if segment_type in segment:
                     text_to_find = segment[segment_type]
                     text_to_find = text_to_find.split("\n")[0]
+                    if text_to_find == "":
+                        continue
+                    
                     # split text into tri-grams and find the corresponding HTML elements
                     text_to_find = text_to_find.split(" ")
-                    text_to_find = [text_to_find[i:i+3] for i in range(0, len(text_to_find), 3)]
+                    # if the number of words is even, then use bi-grams, otherwise use tri-grams
+                    N_GRAM_SIZE = 2 if len(text_to_find) % 2 == 0 else 3
+                    text_to_find = [text_to_find[i:i+N_GRAM_SIZE] for i in range(0, len(text_to_find), N_GRAM_SIZE)]
                     text_to_find = [" ".join(x) for x in text_to_find]
                     text_to_find = "|".join(text_to_find)
                     # compile regex pattern for tri-grams
                     pattern = re.compile(text_to_find)
                     elements = [el.parent for el in soup.findAll(text=pattern)]
+                    # elements = [el for el in elements if re.match(pattern, el.get_text())]
                     if elements:
                         candidate_elements[segment_type].append(elements)
         
@@ -195,14 +283,17 @@ class ChatGPTTemplateEngine(TemplateEngine):
             for els in elements:
                 tmp = []
                 for el in els:
-                    tmp.append(
-                        TemplateElements(
-                            tag=el.name,
-                            parent_tag=el.parent.name,
-                            grandparent_tag=el.parent.parent.name,
-                            depth=self.calculate_element_depth(el),
+                    try:
+                        tmp.append(
+                            TemplateElements(
+                                tag=el.name,
+                                parent_tag=el.parent.name,
+                                grandparent_tag=el.parent.parent.name,
+                                depth=self.calculate_element_depth(el),
+                            )
                         )
-                    )
+                    except Exception as e:
+                        print(e)
                 candidates[type].append(tmp)
 
         # count the number of occurences of each element
@@ -262,6 +353,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
             # if it does, then our template element is the parent (can be the case of multiple paragraphs)
             parent_els = soup.findAll(parent_tag)
             parent_els = [el for el in parent_els if el.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth - 1]
+            el_replaced = False
             for parent_el in parent_els:
                 same_children_cnt = 0
                 for child in parent_el.children:
@@ -274,11 +366,15 @@ class ChatGPTTemplateEngine(TemplateEngine):
                     parent_tag = parent_el.parent.name
                     grandparent_tag = parent_el.parent.parent.name
                     depth = depth - 1
+                    el_replaced = True
                     break
 
             # find all elements that match the template element
             els = soup.findAll(tag)
-            els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth]
+            if not el_replaced:
+                els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth and el.next != "\n"]
+            else:
+                els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth]
             elements[type] = els
         
         return elements
@@ -289,6 +385,8 @@ class ChatGPTTemplateEngine(TemplateEngine):
         """
         text, soup = self.parse_html(file_path)
         segments = self.analyze_text(text)
+        # replace keys "post-title" with "post-header"
+        segments = [{k.replace("post-title", "post-header"): v for k, v in segment.items()} for segment in segments]
         candidates = self.analyze_segments(segments, soup)
         elements = self.determine_template_elements(candidates, soup)
 
@@ -304,9 +402,23 @@ class ChatGPTTemplateEngine(TemplateEngine):
         if all(len(el) == len(elements[self.segment_types[0]]) for el in elements.values()):
             perfect_match = True
 
+        presumed_header = False
+        if not perfect_match:
+            # headers can often be screwed, because messages can be just reactions
+            if len(elements["post-message"]) == len(elements["post-author"]):
+                # presume that the longest element is the header common to all messages
+                longest_el = max(elements["post-header"], key=lambda x: len(x.text))
+                elements["post-header"] = [longest_el for _ in range(len(elements["post-message"]))]
+                presumed_header = True
+
+
         template_proposal = {}
         # template = {}
         contents = {k: [el.text for el in v] for k, v in elements.items()}
+        # if we presumed the header, then append (presumed) to the header
+        if presumed_header:
+            contents["post-header"] = [el + " (presumed)" for el in contents["post-header"]]
+
         obj_elements = []
         for type, els in elements.items():
             if len(els) == 0:
@@ -371,60 +483,6 @@ class Struct(object):
             return type(value)([self._wrap(v) for v in value])
         else:
             return Struct(value) if isinstance(value, dict) else value
-
-
-"""
-'\n\n\n\n  \n\n\n\nBungee54 State of Operations (Page 1) — General Discussion — Bungee54 Member Assembly\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nLogged in as simurgh.\n\nIndex\nNews\nUser list\nWebchat (2)\nSearch\nBitcoin (340 USD)\nProfile\nLogout\nB54.market\nB54.SR2\nB54.AG\nB54.BB\nB54.C9\n\n\n\n\n\n\nSkip to forum content\n\n\n\nBungee54 State of Operations\n\nBungee54 Member Assembly  →\xa0General Discussion  →\xa0Bungee54 State of Operations \n\n\nPages 1\nPost reply\n\n\nRSS topic feed Subscribe\nPosts: 55\n\n\n\n\n1 Topic by Calico Jack 2014-10-21 23:45:42\n\n\n\n\nCalico Jack\nBastard Administrator from Hell\nOffline\n\n\nRegistered: 2013-10-09\nPosts: 196\n\n\n\nTopic: Bungee54 State of Operations\n\nTo all of our friends, valued customers, competitors, partners,\xa0 haters and trolls of Bungee54!Please read the following announcement carefully and in it\'s entirety:The Bungee54 Team is going through a transition that will involve us taking a step back int\nBAFH"Cryptography is Freedom"\n\n\n\n\n\nBitmessage\xa0Calico Jack PM\nReport Post 1 Quote Post 1\n\n\n\n\n\n2 Reply by Fahshizzle 2014-10-22 00:17:28\n\n\n\n\nFahshizzle\nMember\nOffline\n\n\nRegistered: 2013-12-29\nPosts: 35\n\n\n\nRe: Bungee54 State of Operations\n\nthanks for the heads up, certainly makes me feel better about all the FUD thats been going around.sounds like ill need start shopping around for a new vendor  if youre still willing to work with me PM please otherwise, do you have any suggestions for the c\n\n\n\n\n\nPM\nReport Post 2 Quote Post 2\n\n\n\n\n\n3 Reply by drmindbender 2014-10-22 02:03:36\n\n\n\n\ndrmindbender\nNewbie\nOffline\n\n\nRegistered: 2014-08-21\nPosts: 9\n\n\n\nRe: Bungee54 State of Operations\n\nDespite my latest package order not having arrived for more than 2 weeks... and I\'m going to assume it was probably seized in the next day or 2, I am very happy to have read your State of Operations.\xa0 This goes very closely with how I personally feel suppl\n\n\n\n\n\nPM\nReport Post 3 Quote Post 3\n\n\n\n\n\n4 Reply by Axwell 2014-10-22 02:13:25\n\n\n\n\nAxwell\nNewbie\nOffline\n\n\nRegistered: 2014-10-02\nPosts: 9\n\n\n\nRe: Bungee54 State of Operations\n\nBungee team,I\'ve only ordered from you off of Agora under a different name, but I just wanted to let you know that some of us will always support you. Even with the recent delays all of my packages arrived. I wish the team the best with a much deserved bre\n\n\n\n\n\nPM\nReport Post 4 Quote Post 4\n\n\n\n\n\n5 Reply by hosemonster 2014-10-22 02:15:34\n\n\n\n\nhosemonster\nJunior Member\nOffline\n\n\nRegistered: 2014-08-30\nPosts: 72\n\n\n\nRe: Bungee54 State of Operations\n\nWell damn.\xa0 Your final legacy for this part of your journey will be written in the next two months.\xa0 If you take care of every customer as you always have, you will shine better than any other.\xa0 If you don\'t, may Karma eat you alive.\n\n\n\n\n\nPM\nReport Post 5 Quote Post 5\n\n\n\n\n\n6 Reply by LordCynth 2014-10-22 02:21:00\n\n\n\n\nLordCynth\nMember\nOffline\n\n\nRegistered: 2014-09-28\nPosts: 33\n\n\n\nRe: Bungee54 State of Operations\n\nHope to see you back in the full swing of things soon, also hope to talk about my reship soon \n\n\n\n\n\nPM\nReport Post 6 Quote Post 6\n\n\n\n\n\n7 Reply by homer simpson 2014-10-22 06:22:56\n\n\n\n\n\nhomer simpson\nSenior Member\nOffline\n\n\nFrom: Springfield\nRegistered: 2013-10-10\nPosts: 213\n\n\n\nRe: Bungee54 State of Operations\n\nglad to hear from you Jack - take all the time you need. the great majority of us in this community have been well taken care of by you and wish you the best of luck moving forward\nLong-time Bungee54 customer - feel free to ask me anything!The bitmessage address I had tied to this account is no longer active.\n\n\n\n\n\nBitmessage\xa0homer simpson PGP PM\nReport Post 7 Quote Post 7\n\n\n\n\n\n8 Reply by verzero 2014-10-22 07:25:03\n\n\n\n\nverzero\nJunior Member\nOffline\n\n\nRegistered: 2014-04-28\nPosts: 75\n\n\n\nRe: Bungee54 State of Operations\n\nCouldn\'t ask for a better speech. This is exact kind of mature and well thought out response I was waiting for. Bungee has pull through for us from time and time again. They deserve this break and from it, so they can begin anew. Thanks for all the hard wo\n\n\n\n\n\nPM\nReport Post 8 Quote Post 8\n\n\n\n\n\n9 Repl'
-"""
-
-"""
-'\n\n\n\n\n\n\n\n\n\n\nTortuga • View topic - Who´s running this?\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nTortuga\nForum\nSkip to content\n\n\n\n\n\n\nAdvanced search\n\n\n\n\n\n\n\n\nBoard index ‹ Tortuga ‹ General\nChange font size\nPrint view\n\n\nFAQ\nRegister\nLogin\n\n\n\n\n\n\nWho´s running this?\n\n\n\nPost a reply\n\n\n\n\n\n\n\n\n\n\n\n\n\t\t\t10 posts\n\t\t\t • Page 1 of 1\n\n\n\n\n\n\nWho´s running this?\nby ScReaper » Tue Dec 24, 2013 8:39 pm \nStep up, declare your role.The darkmarkets is bleeding and there´s no trust left... why should i sell my shit on your market and how can you guarantee you wont run with the wallets?\n\n\n\nScReaper\n\n\xa0\nPosts: 1Joined: Tue Dec 24, 2013 8:38 pm\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby brickmaster » Tue Dec 24, 2013 8:59 pm \nGood Point, I\'d like to hear a response to that question. I\'m feeling kind of iffy about selling on this site especially since there are little to no vendors and no sign of customers.\n\n\n\nbrickmaster\n\n\xa0\nPosts: 1Joined: Tue Dec 24, 2013 7:33 pm\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby J0K3R » Tue Dec 24, 2013 9:37 pm \nScReaper wrote:Step up, declare your role.The darkmarkets is bleeding and there´s no trust left... why should i sell my shit on your market and how can you guarantee you wont run with the wallets?I can\'t guarantee anything, but:1. I\'am old school guy and I\n\n\n\nJ0K3R\n\nSite Admin\n\xa0\nPosts: 13Joined: Sun Dec 15, 2013 8:09 pm\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby Perico » Wed Dec 25, 2013 1:27 pm \nI noticed the "Help" is blank.  What is Tortuga pegging BTC to ?\n\n\n\nPerico\n\n\xa0\nPosts: 7Joined: Wed Dec 25, 2013 1:11 pm\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby Scarface » Wed Dec 25, 2013 2:00 pm \nPerico wrote:I noticed the "Help" is blank.  What is Tortuga pegging BTC to ?Hey,The conversion process is automatic, exchange rate(from GOX) updated in every 10 min.S\n\n\n\nScarface\n\n\xa0\nPosts: 2Joined: Mon Dec 16, 2013 11:49 am\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby Perico » Wed Dec 25, 2013 7:42 pm \nI also noticed when I click on Sell>Add New>  Nothing happens.  I cannot add listings?\n\n\n\nPerico\n\n\xa0\nPosts: 7Joined: Wed Dec 25, 2013 1:11 pm\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby J0K3R » Wed Dec 25, 2013 10:52 pm \nPerico wrote:I also noticed when I click on Sell>Add New>  Nothing happens.  I cannot add listings?Browser/Tor version/Operating system/Tablet or PC?We tested all functions before we started the site, but only on win7/ubuntu with the newest TOR\n\n\n\nJ0K3R\n\nSite Admin\n\xa0\nPosts: 13Joined: Sun Dec 15, 2013 8:09 pm\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby J0K3R » Wed Dec 25, 2013 11:13 pm \nPerico wrote:I also noticed when I click on Sell>Add New>  Nothing happens.  I cannot add listings?I\'ve changed the button, please try again.\n\n\n\nJ0K3R\n\nSite Admin\n\xa0\nPosts: 13Joined: Sun Dec 15, 2013 8:09 pm\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby chylan » Thu Dec 26, 2013 12:35 am \nAnother new site? Fuck i hope this place ends up being legit, tormarket and sheep were both good sites untilthey fucked everyone. Mister joker, i sincerely ask what your motorvations  are?\n\n\n\nchylan\n\n\xa0\nPosts: 1Joined: Thu Dec 26, 2013 12:27 am\n\nTop\n\n\n\n\n\n\nRe: Who´s running this?\nby Perico » Thu Dec 26, 2013 5:22 am \nThe trick would be to not have any bitcoins you cannot afford to loose in escrow.  After proving oneself worthy of FE buyers will oblige, specially loyal one\'s.  Encrypt everything.Cross fingers.\n\n\n\nPerico\n\n\xa0\nPosts: 7Joined: Wed Dec 25, 2013 1:11 pm\n\nTop\n\n\n\n\n\nDisplay posts from previous: All posts1 day7 days2 weeks1 month3 months6 months1 year\nSort by AuthorPost timeSubject AscendingDescending \n\n\n\n\n\nPost a reply\n\n\n\t\t\t10 posts\n\t\t\t • Page 1 of 1\n\n\nReturn to General\n\n\nJump to:\n\nSelect a forum\n------------------\nTortuga\n\xa0 \xa0General\n\xa0 \xa0Selling and Shipping\n\xa0 \xa0Buying and Receiving\n\xa0 \xa0Stealth and Security\n\xa0 \xa0Offtopic\n\n\n\n\n\n\n\n\n\nBoard index\nThe team • Delete all board cookies • All times are UTC \n\n\n\nPowered by phpBB® Forum Software © phpBB Group\n\t\t\n\t\n\n\n\n\n\n\n'
-
-"""
-
-
-        # output = r"""
-        # [
-        #     {
-        #         "post-header": "Bungee54 State of Operations",
-        #         "post-author": "Calico Jack",
-        #         "post-message": "To all of our friends, valued customers, competitors, partners, haters and trolls of Bungee54!Please read the following announcement carefully and in it's entirety:The Bungee54 Team is going through a transition that will involve us taking a step back int\nBAFH\"Cryptography is Freedom\""
-        #     },
-        #     {
-        #         "post-header": "Bungee54 State of Operations",
-        #         "post-author": "Fahshizzle",
-        #         "post-message": "thanks for the heads up, certainly makes me feel better about all the FUD thats been going around.sounds like ill need start shopping around for a new vendor  if youre still willing to work with me PM please otherwise, do you have any suggestions for the c"
-        #     },
-        #     {
-        #         "post-header": "Bungee54 State of Operations",
-        #         "post-author": "drmindbender",
-        #         "post-message": "Despite my latest package order not having arrived for more than 2 weeks..."
-        #     }
-        # ]
-        # """
-        # output = r"""
-        # [
-        #     {
-        #         "post-header": "Who´s running this?",
-        #         "post-author": "ScReaper",
-        #         "post-message": "Step up, declare your role.The darkmarkets is bleeding and there´s no trust left... why should i sell my shit on your market and how can you guarantee you wont run with the wallets?"
-        #     },
-        #     {
-        #         "post-header": "Who´s running this?",
-        #         "post-author": "brickmaster",
-        #         "post-message": "Good Point, I'd like to hear a response to that question. I'm feeling kind of iffy about selling on this site especially since there are little to no vendors and no sign of customers."
-        #     },
-        #     {
-        #         "post-header": "Who´s running this?",
-        #         "post-author": "J0K3R",
-        #         "post-message": "ScReaper wrote:Step up, declare your role.The darkmarkets is bleeding and there´s no trust left... why should i sell my shit on your market and how can you guarantee you wont run with the wallets?I can't guarantee anything"
-        #     }
-        # ]
-        
-        # """
-
-# real GPT answer
-'[\n  {\n    "post-header": "Topic: Bungee54 State of Operations",\n    "post-author": "Calico Jack",\n    "post-message": "To all of our friends, valued customers, competitors, partners,  haters and trolls of Bungee54!Please read the following announcement carefully and in it\'s entirety:The Bungee54 Team is going through a transition that will involve us taking a step back int\\nBAFH\\"Cryptography is Freedom\\""\n  },\n  {\n    "post-header": "Re: Bungee54 State of Operations",\n    "post-author": "Fahshizzle",\n    "post-message": "thanks for the heads up, certainly makes me feel better about all the FUD thats been going around.sounds like ill need start shopping around for a new vendor  if youre still willing to work with me PM please otherwise, do you have any suggestions for the c"\n  },\n  {\n    "post-header": "Re: Bungee54 State of Operations",\n    "post-author": "drmindbender",\n    "post-message": "Despite my latest package order not having arrived for more than 2 weeks... and I\'m going to assume it was probably seized in the next day or 2, I am very happy to have read your State of Operations.\\u00a0 This goes very closely with how I personally feel suppl"\n  }\n]'
 
 RESPONSE = {
   "choices": [

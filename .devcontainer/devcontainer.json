@@ -5,6 +5,7 @@
     "shutdownAction": "none",
     "mounts": [
         "type=bind,source=D:\\FIT-VUT\\DP\\webpage_categorization\\data,target=/data/",
+        "type=bind,source=E:\\data,target=/data_2/"
     ],
     "extensions": [
         "ms-python.python",

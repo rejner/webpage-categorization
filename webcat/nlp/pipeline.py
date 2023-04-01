@@ -91,7 +91,7 @@ class WebCatPipeline():
         # now filter any hashes that are duplicates
         filter_stats = {
             "total": len(contents),
-            "duplicate": 0,
+            "duplicate": len(contents) - len(contents_tmp),
         }
         hash_index = {}
         contents_filtered = []
@@ -99,8 +99,6 @@ class WebCatPipeline():
             if content['hash'] not in hash_index:
                 hash_index[content['hash']] = i
                 contents_filtered.append(content)
-            else:
-                filter_stats["duplicate"] += 1
 
         logging.warn(f"Filtered {filter_stats['duplicate']} duplicate hashes out of {filter_stats['total']} total hashes")
         
@@ -165,9 +163,6 @@ class WebCatPipeline():
                     continue
                 processed_objects.append(content)
                 stats["processed_contents"] += 1
-
-            
-
 
         except Exception as e:
             logging.error(f"Error processing file: {content['file_path']}")
