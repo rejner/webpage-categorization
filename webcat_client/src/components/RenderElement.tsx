@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { ControlsContext, TemplatesContext } from "./Templater";
 import { colorToSectionMapping } from "./Templater";
-import { Element } from "../models/Element";
+import { Element_v2 } from "../models/Element";
 
 interface Props {
   el: HTMLElement;
@@ -27,12 +27,13 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
 
   useEffect(() => {
       if (createTemplate && isSelected) {
-          let newElement: Element = {
+          let newElement: Element_v2 = {
               type: colorToSectionMapping[label!],
               tag: el.tagName.toLowerCase(),
               id: 0,
-              id_attr: el.id,
-              classes: el.className.split(" ")
+              parent_tag: el.parentElement?.tagName.toLowerCase() || "",
+              grandparent_tag: el.parentElement?.parentElement?.tagName.toLowerCase() || "",
+              depth: depth,
           };
           addElement(newElement);
       }
