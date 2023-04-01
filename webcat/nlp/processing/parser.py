@@ -38,38 +38,30 @@ class WebCatParser():
         if len(file_paths) == 1:
             path = Path(file_paths[0])
             contents = [self._parse_file(path)]
-            # contents = [item for item in contents if item[1] is not None]
+            contents = [item for item in contents if item is not None]
             return contents
         
         # use joblib to parallelize the parsing process (returns a list of tuples, where each tuple is (file_path, list of strings (texts))
         contents = joblib.Parallel(n_jobs=-1, verbose=1)(joblib.delayed(self._parse_file)(file) for file in file_paths)
-        # contents = [item for item in contents if item[1] is not None]
+        contents = [item for item in contents if item is not None]
         return contents
 
     '''
         Parse given file with a set of tools and create data object.
     '''
     def _parse_file(self, file_path: Path):
-        logging.debug(f"Parsing file: {file_path}")
+        logging.info(f"Parsing file: {file_path}")
         try:
             with open(file_path) as fd:
                 contents = fd.read()
                 chunks = self.strategy.parse(contents)
-                # if not chunks:
-                    # chunks = self.fallback_strategy.parse(contents)
                 for chunk in chunks:
                     chunk['file_path'] = str(file_path)
                 return chunks
-                # chunks, hashes = self.strategy.parse(contents)
-                # if not chunks:
-                #     raise NoParsableContentError("No parsable content found.")
-                
-                # # self.process_all_tables(contents)
-                # chunks  = [self.clear_text(chunk) for chunk in chunks]
-                # return (str(file_path), (chunks, hashes)) 
-            
+
         except Exception as e:
             logging.info(f"No parsable content found in file: {file_path}")
+            return None
 
     def clear_text(self, text):
         # remove urls

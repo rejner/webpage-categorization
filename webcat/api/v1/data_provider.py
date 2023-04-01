@@ -27,48 +27,7 @@ class WebCatDataProvider(Resource):
         self.parser.add_argument('entity_values', type=str, action='append')
         self.parser.add_argument('file_names', type=str, action='append')
         self.parser.add_argument('file_paths', type=str, action='append')
-
         self.file_cache = {}
-
-    # def process_request(self, args): # My shitty code
-    #     # validate and process args
-    #     categories = args['categories'] or []
-    #     cat_threshold = args['cat_threshold']
-    #     entity_types = args['entity_types'] or []
-    #     ent_threshold = args['ent_threshold']
-    #     entity_values = args['entity_values'] or []
-    #     file_names = args['file_names'] or []
-    #     file_paths = args['file_paths'] or []
-
-    #     # implement data filtering based on the above parameters
-    #     # and return the filtered data
-        
-    #     # create query for each filter and combine them with AND
-    #     if categories and 'all' not in categories:
-    #         category_query = db.session.query(Content).filter(Content.categories.any(ContentCategory.category.has(Category.name.in_(categories))))
-    #     else:
-    #         category_query = db.session.query(Content).filter(Content.categories.any())
-
-    #     if entity_types and 'all' not in entity_types:
-    #         entity_query = db.session.query(Content).filter(Content.entities.any(NamedEntity.type.has(EntityType.name.in_(entity_types))))
-    #     else:
-    #         entity_query = db.session.query(Content).filter(Content.entities.any())
-
-    #     if cat_threshold > 0 and categories:
-    #         # remove categories with confidence value lower than threshold
-    #         tmp = []
-    #         for content in category_query:
-    #             required_categories = [category for category in content.categories if category.category.name in categories]
-    #             # if all required categories have confidence value lower than threshold, remove the content object
-    #             if all([category.confidence < cat_threshold for category in required_categories]):
-    #                 tmp.append(content)
-
-    #         # remove content objects from query which appear in tmp
-    #         category_query = category_query.filter(~Content.id.in_([c.id for c in tmp]))
-
-    #     # merge objects from both queries (intersect)
-    #     query = category_query.intersect(entity_query)
-    #     return query.all()
 
     def process_request(self, args):
         # validate and process args
@@ -79,90 +38,29 @@ class WebCatDataProvider(Resource):
         entity_values = args.get('entity_values', [])
         file_names = args.get('file_names', [])
         file_paths = args.get('file_paths', [])
-
-        # # construct base query for filtering
-        # query = db.session.query(Content)
-
-        # # apply filters for categories and entities
-        # if categories and 'all' not in categories:
-        #     category_query = query.join(ContentCategory).join(Category).filter(Category.name.in_(categories))
-        #     if cat_threshold > 0:
-        #         category_query = category_query.filter(ContentCategory.confidence >= cat_threshold)
-        #     query = query.intersect(category_query)
-
-        # if entity_types and 'all' not in entity_types:
-        #     entity_query = query.join(Content.entities).join(NamedEntity.type).filter(EntityType.name.in_(entity_types))
-        #     if ent_threshold > 0:
-        #         entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
-        #     query = query.intersect(entity_query)
-
-        # # execute the query and return the results
-        # return query.all()
-
-        # query = db.session.query(Content_v2)
-        # query = query.join(ContentMessage_v2).join(Message_v2).join(MessageCategory_v2, Message_v2.id == MessageCategory_v2.message_id).join(Category, MessageCategory_v2.category_id == Category.id)
-        # # apply filters for categories and entities
-        # if categories and 'all' not in categories:
-        #     # filter by categories
-        #     category_query = query.join(ContentMessage_v2).join(Message_v2).join(MessageCategory_v2, Message_v2.id == MessageCategory_v2.message_id).join(Category, MessageCategory_v2.category_id == Category.id).filter(Category.name.in_(categories))
-        #     if cat_threshold > 0:
-        #         category_query = category_query.filter(MessageCategory_v2.confidence >= cat_threshold)
-        #     query = query.join(ContentMessage_v2).join(Message_v2).options(contains_eager(Content_v2.messages)).intersect(category_query)
-
-        # if entity_types and 'all' not in entity_types:
-        #     # filter by entity types
-        #     entity_query = query.join(ContentMessage_v2).join(Message_v2).join(MessageEntity_v2, Message_v2.id == MessageEntity_v2.message_id).join(NamedEntity, MessageEntity_v2.entity_id == NamedEntity.id).join(EntityType, NamedEntity.type_id == EntityType.id).filter(EntityType.name.in_(entity_types))
-        #     if ent_threshold > 0:
-        #         entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
-        #     query = query.join(ContentMessage_v2).join(Message_v2).options(contains_eager(Content_v2.messages)).intersect(entity_query)
-
-        # # query = query.join(ContentMessage_v2).join(Content_v2).join(Message_v2).options(contains_eager(Content_v2.messages))
-
-        # # execute the query and return the results
-        # return query.all()
-
+        
+        # build the query
         query = db.session.query(Content_v2)
         query = query.join(ContentMessage_v2).join(Message_v2).join(MessageCategory_v2, Message_v2.id == MessageCategory_v2.message_id).join(Category, MessageCategory_v2.category_id == Category.id)
         # apply filters for categories and entities
-        if categories and 'all' not in categories:
-            # filter by categories
-            category_query = query.filter(Category.name.in_(categories))
-            if cat_threshold > 0:
-                category_query = category_query.filter(MessageCategory_v2.confidence >= cat_threshold)
-            query = query.intersect(category_query)
+        if categories:
+            if 'all' not in categories:
+                # filter by categories
+                category_query = query.filter(Category.name.in_(categories))
+                if cat_threshold > 0:
+                    category_query = category_query.filter(MessageCategory_v2.confidence >= cat_threshold)
+                query = query.intersect(category_query)
 
-        if entity_types and 'all' not in entity_types:
-            # filter by entity types
-            entity_query = query.join(ContentMessage_v2).join(Message_v2, Message_v2.id == ContentMessage_v2.message_id).join(MessageEntity_v2, MessageEntity_v2.message_id == Message_v2.id).join(NamedEntity, NamedEntity.id == MessageEntity_v2.entity_id).join(EntityType, EntityType.id == NamedEntity.type_id).filter(EntityType.name.in_(entity_types))
-            if ent_threshold > 0:
-                entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
-            query = query.intersect(entity_query)
-
-        # query = query.join(ContentMessage_v2).join(Content_v2).join(Message_v2).options(contains_eager(Content_v2.messages))
+        if entity_types:
+            if 'all' not in entity_types:
+                # filter by entity types
+                entity_query = query.join(ContentMessage_v2).join(Message_v2, Message_v2.id == ContentMessage_v2.message_id).join(MessageEntity_v2, MessageEntity_v2.message_id == Message_v2.id).join(NamedEntity, NamedEntity.id == MessageEntity_v2.entity_id).join(EntityType, EntityType.id == NamedEntity.type_id).filter(EntityType.name.in_(entity_types))
+                if ent_threshold > 0:
+                    entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
+                query = query.intersect(entity_query)
 
         # execute the query and return the results
         return query.all()
-
-    def serialize_content(self, content: Content_v2):
-        cat_names = [category.category.name for category in content.categories]
-        cat_confs = [category.confidence for category in content.categories]
-        # create a dictionary of the categories and their confidence
-        categories = {cat_names[i]: cat_confs[i] for i in range(len(cat_names))}
-        try:
-            # try to get the file from cache
-            file = self.file_cache[content.file_id]
-        except KeyError:
-            # if not in cache, get it from the database
-            file = db.session.query(File).filter_by(id=content.file_id).first()
-            self.file_cache[content.file_id] = file
-
-        return {
-            "id": content.id,
-            'file': file.path,
-            "categories": categories,
-            "entities": [entity.json_serialize() for entity in content.entities],
-            "text": content.text
-        }
 
     # Get returns all possible categories and entity types
     def get(self):

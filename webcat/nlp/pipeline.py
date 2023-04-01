@@ -80,9 +80,6 @@ class WebCatPipeline():
         #     "header": str,
         #     "author": str,
         # }
-        # flatten the list of contents
-        # contents = [content_obj for list_of_objects in contents for content_obj in list_of_objects]
-
         # filter any hashes that are already in the database
         hashes = [content['hash'] for content in contents]
         hashes_in_db = self.db.session.query(Content_v2.hash).filter(Content_v2.hash.in_(hashes)).all()
@@ -101,14 +98,6 @@ class WebCatPipeline():
                 contents_filtered.append(content)
 
         logging.warn(f"Filtered {filter_stats['duplicate']} duplicate hashes out of {filter_stats['total']} total hashes")
-        
-        # 'message' is a list of strings, so we need to create separate entry for each string
-
-        # TODO No capacity for today,
-        # we need to create one entry for each string in the message list and keep track of the object of the original message
-        # at the end, we have to collect separate messages after analysis back to the original message object
-        # and then to the original content object
-
         # create a message: index mapping
         messages = []
         for i, content in enumerate(contents_filtered):
@@ -120,14 +109,9 @@ class WebCatPipeline():
                     "file_path": content['file_path']
                 })
 
-
-        # hashes = [content['hash'] for content in contents_filtered]
-        # files = [content['file_path'] for content in contents_filtered]
-
         logging.warn(f"Constructing dataset from {len(contents_filtered)} content chunks...")
-
         dataset = datasets.Dataset.from_list([{ "text": message['message'], "content_row": message['content_row'], "hash": message['hash'], "file_path": message['file_path']} for message in messages])
-        
+    
         processed_objects = []
         stats = {
             "total_contents": len(contents),
@@ -147,8 +131,12 @@ class WebCatPipeline():
         # process entire file
         try:
             logging.info(f"Processing {len(messages)} messages...")
+            if len(messages) == 0:
+                return [], stats
+            
             rows = dataset['content_row']
             categories, entities, texts = self.analyzer.analyze_dataset(dataset, **kwargs)
+
             if not categories or not entities:
                 return [], stats
             
@@ -157,7 +145,7 @@ class WebCatPipeline():
                 contents_filtered[rows[i]]['entities'].append([{'name': e[0], 'type': {'name': e[1]}} for e in entity])
                 stats["processed_messages"] += 1
 
-            for i, content in enumerate(contents):
+            for i, content in enumerate(contents_filtered):
                 if content == None:
                     stats["error"] += 1
                     continue
@@ -189,16 +177,23 @@ class WebCatPipeline():
         }
         for file_content in files_contents:
             logging.info(f"Analyzing file: {file_content[0]['file_path']}")
-            analyzed_content, stats = self.analyze_files_content(file_content, **kwargs)
-            saved_content = self.save_contents_to_db(analyzed_content)
-            analyzed_objects.extend(saved_content)
-            for key in stats_all.keys():
-                stats_all[key] += stats[key]
+            try:
+                analyzed_content, stats = self.analyze_files_content(file_content, **kwargs)
+                for key in stats_all.keys():
+                    stats_all[key] += stats[key]
+                if len(analyzed_content) == 0:
+                    continue
+                saved_content = self.save_contents_to_db(analyzed_content)
+                analyzed_objects.extend(saved_content)
+            except Exception as e:
+                logging.error(f"Error analyzing file: {file_content[0]['file_path']}")
+                logging.error(e)
+                stats_all["error"] += 1
 
         end = time.time()
         print("Time to process files [Dataset]: ", end - start)
         return [obj.json_serialize() for obj in analyzed_objects], stats_all
-
+    
     def process_raw_text(self, text, **kwargs):
         labels = kwargs["labels"] if "labels" in kwargs else None
         self.load_categories(labels)
@@ -234,6 +229,7 @@ class WebCatPipeline():
                         self.db.session.add(message)
                         self.db.session.flush()
                         message.categories = [MessageCategory_v2(message.id, self.labels_to_ids[label], conf) for label, conf in cats.items()]
+                        ents = [ent for ent in ents if ent['type']['name'] in self.types_to_ids and ent['name'] != '' and ent['name'] != ' ']
                         named_entities = [NamedEntity(entity['name'], self.types_to_ids[entity['type']['name']]) for entity in ents]
                         message.entities = named_entities
                         self.db.session.add_all(named_entities)
