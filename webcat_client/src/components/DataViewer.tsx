@@ -11,6 +11,7 @@ interface WebCatFilters {
     entity_values: string[],
     file_names: string[],
     file_paths: string[],
+    authors: string[],
 }
 
 interface WebCatInfo {
@@ -23,6 +24,7 @@ function DataViewer() {
     const [entity_types, setEntityTypes] = React.useState() as [string[], (entity_types: string[]) => void];
     const [content, setContent] = React.useState() as [Content_v2[], (content: Content_v2[]) => void];
     const [isLoading , setIsLoading] = React.useState(false);
+    const [showAdvancedFilters, setShowAdvancedFilters] = React.useState(false);
     const [filter, setFilter] = React.useState<WebCatFilters>({
         categories: ['all'],
         cat_threshold: 0.0,
@@ -30,7 +32,8 @@ function DataViewer() {
         ent_threshold: 0.0,
         entity_values: [],
         file_names: [],
-        file_paths: [],
+        file_paths: [""],
+        authors: [""],
     });
 
     // Read server_ip and server_port from the context
@@ -201,64 +204,111 @@ function DataViewer() {
                             </Col>
                         ))}
                 </Row>
-                {/* Numerical value for setting threshold of category */}
-                <Row>
-                    <Col>
-                        <Form.Label className="pt-3">Category Threshold</Form.Label>
-                        <Form.Control type="number" value={filter.cat_threshold} min='0' max='1' step='0.01' onChange={(e) => {
-                            setFilter({...filter, cat_threshold: parseFloat(e.target.value)});
-                        }} />
-                    </Col>
-                    <Col>
-                        <Form.Label className="pt-3">Entity Threshold</Form.Label>
-                        <Form.Control type="number" value={filter.ent_threshold} min='0' max='1' step='0.01'onChange={(e) => {
-                            setFilter({...filter, ent_threshold: parseFloat(e.target.value)});
-                        }} />
-                    </Col>
-                </Row>
-                {/* Text input for filtering by entity value */}
-                {/* <Row>
-                    <Col>
-                        <Form.Label className="pt-3">Entity Values</Form.Label>
-                        <Form.Control type="text" value={filter.entity_values} onChange={(e) => {
-                            setFilter({...filter, entity_values: [e.target.value]});
-                        }} />
-                    </Col>
-                </Row> */}
-                {/* Text input for filtering by file name */}
-                {/* <Row>
-                    <Col>
-                        <Form.Label className="pt-3">File Names</Form.Label>
-                        <Form.Control type="text" value={filter.file_names} onChange={(e) => {
-                            setFilter({...filter, file_names: [e.target.value]});
-                        }} />
-                    </Col>
-                </Row> */}
-                {/* Text input for filtering by file path */}
-                {/* <Row>
-                    <Col>
-                        <Form.Label className="pt-3">File Paths</Form.Label>
-                        <Form.Control type="text" value={filter.file_paths} onChange={(e) => {
-                            setFilter({...filter, file_paths: [e.target.value]});
-                        }} />
-                    </Col>
-                </Row> */}
-
-                {/* Button for retrieving data from the database */}
-                <Row>
-                    <Col>
-                        <Button className="mt-3" variant="primary" onClick={() => {
-                            console.log(filter);
-                            request_content();
-                        }}>Request Data</Button>
-                    </Col>
-                    {isLoading &&
-                        <Col>
-                            <Spinner animation="border" role="status" className='mt-3'>
-                            </Spinner>
+                <Form.Switch className="pt-3" id="custom-switch" label="Show Advanced Filters" checked={showAdvancedFilters} onChange={(e) => {
+                    setShowAdvancedFilters(e.target.checked);
+                }} />
+                {showAdvancedFilters &&
+                    <>
+                    {/* Numerical value for setting threshold of category */}
+                    <Row className="w-25">
+                        <Col className=''>
+                            <Form.Label className="pt-3">Category Threshold</Form.Label>
+                            <Form.Control type="number" value={filter.cat_threshold} min='0' max='1' step='0.01' onChange={(e) => {
+                                setFilter({...filter, cat_threshold: parseFloat(e.target.value)});
+                            }} />
+                            {/*description of threshold*/}
+                            <Form.Text className="text-muted">
+                                The threshold for the category confidence.
+                            </Form.Text>
                         </Col>
+                        {/* <Col>
+                            <Form.Label className="pt-3">Entity Threshold</Form.Label>
+                            <Form.Control type="number" value={filter.ent_threshold} min='0' max='1' step='0.01'onChange={(e) => {
+                                setFilter({...filter, ent_threshold: parseFloat(e.target.value)});
+                            }} />
+                        </Col> */}
+                    </Row>
+                    <Stack direction="vertical" gap={1}>
+                        {/* Post author search */}
+                        <Form.Label className="pt-3">Authors</Form.Label>
+                        {
+                            filter.authors &&
+                            filter.authors.map((author, index) => (
+                                <Stack direction="horizontal" gap={3}>
+                                    <Form.Control key={index} type="text" placeholder="Enter author" value={author} className='w-50'
+                                        onChange={(e) => {
+                                        let authors = filter.authors;
+                                        authors[index] = e.target.value;
+                                        setFilter({...filter, authors: authors});
+                                        }
+                                    } />
+                                    <Button variant="danger" onClick={() => {
+                                        let authors = filter.authors;
+                                        authors.splice(index, 1);
+                                        setFilter({...filter, authors: authors});
+                                    }
+                                    }>Remove</Button>
+                                </Stack>
+                            ))
+                        }
+                        <Form.Text className="text-muted">
+                            The authors of the posts (subwords will get matched as well).
+                        </Form.Text>
+                        <Button className="w-25 mt-2" variant="outline-primary" onClick={() => { 
+                            setFilter({...filter, authors: [...filter.authors, '']});
+                        }}>Add</Button>
+                    
+                    </Stack>
+                    <Stack direction="vertical" gap={1}>
+                        <Form.Label className="pt-3">File Path</Form.Label>
+                        {
+                            filter.file_paths &&
+                            filter.file_paths.map((path, index) => (
+                                <Stack direction="horizontal" gap={3}>
+                                    <Form.Control key={index} type="text" placeholder="Enter path to the file" value={path} className='w-50'
+                                        onChange={(e) => {
+                                        let paths = filter.file_paths;
+                                        paths[index] = e.target.value;
+                                        setFilter({...filter, file_paths: paths});
+                                    }
+                                    } />
+                                    <Button variant="danger"  onClick={() => {
+                                        let paths = filter.file_paths;
+                                        paths.splice(index, 1);
+                                        setFilter({...filter, file_paths: paths});
+                                    }}>Remove</Button>
+                                </Stack>
+                                
+                            ))
+                        }
+                        <Form.Text className="text-muted">
+                            The path to the file (wildcards * can be used as well).
+                        </Form.Text>
+
+                        <Button variant="outline-primary" className="w-25 mt-2" onClick={() => {
+                            setFilter({...filter, file_paths: [...filter.file_paths, '']});
+                        }}>Add</Button>
+    
+            
+                
+                    </Stack>
+                </>
+            }
+            {/* Button for retrieving data from the database */}
+            <Stack direction="vertical" gap={3} className='justify-content-center'>
+                <Button className="mt-3 w-25" variant="primary" onClick={() => {
+                    console.log(filter);
+                    request_content();
+                }}>{isLoading &&
+                        <Spinner animation="border" role="status" size="sm">
+                        </Spinner>
                     }
-                </Row>
+                    {!isLoading &&
+                        "Request Data"
+                    }
+                </Button>
+            </Stack>
+            
             </Container>
             {/* Show length of content */}
             {

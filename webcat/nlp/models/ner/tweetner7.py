@@ -4,6 +4,11 @@ import torch
 from transformers.pipelines import PIPELINE_REGISTRY
 
 class TweetNER7():
+    path = "tner/twitter-roberta-base-dec2021-tweetner7-random"
+    name = "RoBERTa base TweetNER7"
+    size = "484 MB"
+    description = "A model trained on the TweetNER7 dataset using the RoBERTa base architecture."
+
     def __init__(self) -> None:
         self.tokenizer = AutoTokenizer.from_pretrained("webcat/model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")
         self.model = AutoModelForTokenClassification.from_pretrained("webcat/model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")

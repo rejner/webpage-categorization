@@ -1,9 +1,8 @@
 import React from 'react';
 import { Stack, Container, Button, Form, Row, Col, Card } from 'react-bootstrap';
-import { useFilePicker, Validator } from 'use-file-picker';
 import { AppContext } from '../index';
 import { Content, entity_color_mapping } from '../models/Content';
-
+import { ModelSpecs } from './FilesParserForm';
 
 
 function InteractiveParserForm() {
@@ -12,23 +11,48 @@ function InteractiveParserForm() {
     const [input, setInput] = React.useState("");
     const [categories, setCategories] = React.useState();
     const [text, setText] = React.useState();
-    const [openFileSelector, { filesContent, loading, errors, plainFiles, clear }] = useFilePicker({
-        multiple: false,
-        readAs: 'DataURL',
-    });
+    const [availableModels, setAvailableModels] = React.useState<ModelSpecs[]>([]);
+    const [classificationModel, setClassificationModel] = React.useState<ModelSpecs>();
+    const [nerModel, setNerModel] = React.useState<ModelSpecs>();
+    const [showModelSelection, setShowModelSelection] = React.useState(false);
     // Read server_ip and server_port from the context
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
+    React.useEffect(() => {
+        // fetch available models from server
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_files_parser`)
+            .then(response => response.json())
+            .then(data => { 
+                console.log(data);
+                data = JSON.parse(data);
+                let models: ModelSpecs[] = data.models;
+                setAvailableModels(models);
+                // find default models
+                let defaultClassificationModel = models.find(model => model.task === "classification" && model.default);
+                let defaultNerModel = models.find(model => model.task === "ner" && model.default);
+                if (defaultClassificationModel) {
+                    setClassificationModel(defaultClassificationModel);
+                }
+                if (defaultNerModel) {
+                    setNerModel(defaultNerModel);
+                }
+            });
+    }, []);
+
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        console.log(`Hypothesis Template: ${hypothesisTemplate} Labels: ${labels}, Input: ${input}`);
 
         // Construct the request body, which is a JSON object
         const requestBody = {
             "hypothesis_template": hypothesisTemplate,
             "labels": labels.split(','),
             "input": input,
+            "models": JSON.stringify({
+                "classification": classificationModel?.name,
+                "ner": nerModel?.name
+            })
         };
+        console.log(requestBody);
 
         // Send the request to the server
 
@@ -61,8 +85,59 @@ function InteractiveParserForm() {
 
     return (
         <Container className="bg-none" >
-            <Stack gap={3} className="mt-4">
+            <Stack gap={3} className="mt-4 text-light">
                 <Form onSubmit={handleSubmit}>
+                <Form.Switch className="mb-2" label="Show Model Selection" checked={showModelSelection} onChange={(e) => setShowModelSelection(e.target.checked)} />
+                    {/* Model selection */}
+                    {showModelSelection && availableModels &&
+                        <Stack gap={3} direction="vertical">
+                            <Form.Group controlId="formModel">
+                                <Form.Label className='text-light'>Classification Model</Form.Label>
+                                <Form.Select aria-label="Default select example w-25" value={classificationModel?.name} onChange={(e) => setClassificationModel(
+                                    availableModels.find((model) => model.name == e.target.value)
+                                )}>
+                                    {
+                                        availableModels.map((model, index) => {
+                                            if (model.task == 'classification'){
+                                                return <option key={index} value={model.name}>{model.name}</option>
+                                            }
+                                        
+                                        })
+                                    }
+                                </Form.Select>
+                                {
+                                classificationModel && 
+                                <Form.Text className="text-muted">
+                                    {classificationModel.description}
+                                    {classificationModel.size && <span> Size: {classificationModel.size}</span>}
+                                </Form.Text>
+                            }
+                            </Form.Group>
+          
+                            <Form.Group className="mb-3" controlId="formModel">
+                                <Form.Label className='text-light'>Entity Recognition Model</Form.Label>
+                                <Form.Select aria-label="Default select example w-25" value={nerModel?.name} onChange={(e) => setNerModel(
+                                    availableModels.find((model) => model.name == e.target.value)
+                                )}>
+                                    {
+                                        availableModels.map((model, index) => {
+                                            if (model.task == 'ner'){
+                                                return <option key={index} value={model.name}>{model.name}</option>
+                                            }
+                                        }
+                                        )
+                                    }
+                                </Form.Select>
+                                {
+                                nerModel &&
+                                    <Form.Text className="text-muted">
+                                        {nerModel.description}
+                                        {nerModel.size && <span> Size: {nerModel.size}</span>}
+                                    </Form.Text>
+                                }
+                            </Form.Group>
+                        </Stack>
+                    }
                     <Form.Group className="mb-3" controlId="formHypothesisTemplate">
                         <Form.Label className='text-light'>Hypothesis Template</Form.Label>
                         <Form.Control type="string" placeholder="Enter hypothesis template in the form: My hypothesis {}." value={hypothesisTemplate} onChange={(e) => setHypothesisTemplate(e.target.value)}/>

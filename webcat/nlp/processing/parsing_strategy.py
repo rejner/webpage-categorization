@@ -10,6 +10,9 @@ import urlextract
 
 nltk.download('punkt')
 
+url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+email_pattern = r'[\w\.-]+@[\w\.-]+'
+
 class ParsingStrategy(object):
     """
         Abstract class for parsing strategies.
@@ -425,32 +428,31 @@ class TemplatesStrategy_v2(ParsingStrategy):
         for template in self.templates:
             tmp_segments = {k: None for k in self.segment_types}
             segments_match = True
-            for template_element in template.elements:
-                segment = self.ids_to_types[template_element.type_id]
-                elements = soup.findAll(template_element.tag)
+            for template_element in template['elements']:
+                segment = self.ids_to_types[template_element['type_id']]
+                elements = soup.findAll(template_element['tag'])
                 if elements is None:
                     segments_match = False
                     break # template does not match
 
                 # filter elements by parent tag
-                elements = list(filter(lambda x: x.parent.name == template_element.parent_tag, elements))
+                elements = list(filter(lambda x: x.parent.name == template_element['parent_tag'], elements))
                 if len(elements) == 0:
                     segments_match = False
                     break
 
                 # filter elements by grandparent tag
-                elements = list(filter(lambda x: x.parent.parent.name == template_element.grandparent_tag, elements))
+                elements = list(filter(lambda x: x.parent.parent.name == template_element['grandparent_tag'], elements))
                 if len(elements) == 0:
                     segments_match = False
                     break
 
                 # filter elements by depth
-                elements = list(filter(lambda x: self.calculate_element_depth(x) == template_element.depth, elements))
+                elements = list(filter(lambda x: self.calculate_element_depth(x) == template_element['depth'], elements))
                 if len(elements) == 0:
                     segments_match = False
                     break
                 
-                isinstance
                 # all elements must have the same next element tag
                 # some elements may not have a next element, but keep track of nones
                 elements_next_type = ['string' if isinstance(e.next, str) else 'element' for e in elements]
@@ -475,11 +477,21 @@ class TemplatesStrategy_v2(ParsingStrategy):
         
         return segments
 
+    # def clear_text(self, text):
+    #     """
+    #         Removes all the newlines from the text.
+    #     """
+    #     # Remove all the newlines
+    #     text = text.replace("\n", " ")
+    #     # Remove all the tabs
+    #     text = text.replace("\t", " ")
+    #     # Remove all the multiple spaces
+    #     text = re.sub(" +", " ", text)
+    #     # Remove all the leading and trailing spaces
+    #     text = text.strip()
+    #     return text
+    
     def clear_text(self, text):
-        """
-            Removes all the newlines from the text.
-        """
-        # Remove all the newlines
         text = text.replace("\n", " ")
         # Remove all the tabs
         text = text.replace("\t", " ")
@@ -487,6 +499,14 @@ class TemplatesStrategy_v2(ParsingStrategy):
         text = re.sub(" +", " ", text)
         # Remove all the leading and trailing spaces
         text = text.strip()
+        # remove urls
+        # urls = re.findall(url_pattern, text)
+        text = re.sub(url_pattern, ' {{URL}} ', text)
+        # remove emails
+        # emails = re.findall(email_pattern, text)
+        text = re.sub(email_pattern, " {{EMAIL}} ", text)
+        # remove html tags
+        text = re.sub(r'<[^>]*>', '', text)
         return text
     
     def parse(self, content):

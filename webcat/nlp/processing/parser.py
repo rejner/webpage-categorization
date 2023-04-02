@@ -66,12 +66,16 @@ class WebCatParser():
     def clear_text(self, text):
         # remove urls
         # urls = re.findall(url_pattern, text)
-        text = re.sub(url_pattern, '', text)
+        text = re.sub(url_pattern, ' {{URL}} ', text)
         # remove emails
         # emails = re.findall(email_pattern, text)
-        text = re.sub(email_pattern, '', text)
+        text = re.sub(email_pattern, " {{EMAIL}} ", text)
         # remove html tags
         text = re.sub(r'<[^>]*>', '', text)
+        return text
+
+    def parse_raw_text(self, text):
+        text = self.clear_text(text)
         return text
 
 

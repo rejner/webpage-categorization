@@ -3,18 +3,22 @@ from flask import current_app
 # from .worker import worker
 from database import db
 from models_extension import *
-from .worker import WebCatWorker
+# from .worker import WebCatWorker
+from nlp.pipeline import WebCatPipeline
+import json
 
 # Requests for processing will have path to files, hypothesis template, labels and recursive flag + text
 interactive_parser = reqparse.RequestParser()
 interactive_parser.add_argument('hypothesis_template', type=str)
 interactive_parser.add_argument('labels', type=str, action='append')
 interactive_parser.add_argument('input', type=str)
+interactive_parser.add_argument('models', type=str)
 
 class WebCatInteractive(Resource):
     def __init__(self):
         super().__init__()
-        self.worker = WebCatWorker(db)
+        # self.worker = WebCatWorker(db)
+        self.pipeline = None
 
     def verify_interactive_request(self, args):
         if args['hypothesis_template'] is None or args['hypothesis_template'] == "":
@@ -36,8 +40,18 @@ class WebCatInteractive(Resource):
         if not valid:
             return {'error': msg}, 400
 
-        result = self.worker.process_raw_text(args['input'], 
-                                                    **{'hypothesis_template': args['hypothesis_template'], 
+        # get models
+        models = args['models']
+        models = json.loads(models)
+
+        if not self.pipeline:
+            self.pipeline = WebCatPipeline(db, models)
+
+        result = self.pipeline.process_raw_text(args['input'],**{'hypothesis_template': args['hypothesis_template'], 
                                                         'labels': args['labels'],})
+
+        # result = self.worker.process_raw_text(args['input'], 
+        #                                             **{'hypothesis_template': args['hypothesis_template'], 
+        #                                                 'labels': args['labels'],})
         
         return result, 200

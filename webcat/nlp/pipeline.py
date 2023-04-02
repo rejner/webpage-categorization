@@ -11,10 +11,10 @@ import time
 import psycopg2
 
 class WebCatPipeline():
-    def __init__(self, db):
+    def __init__(self, db, models):
         self.db = db
         self.initialize_parser()
-        self.analyzer = WebCatAnalyzer()
+        self.analyzer = WebCatAnalyzer(models)
         self.batch_size = 16
         self.max_queue_size = 1000
         self.queue = mp.Queue(maxsize=self.max_queue_size)
@@ -28,6 +28,7 @@ class WebCatPipeline():
         if version == 2:
             templates = self.db.session.query(Template_v2).all()
 
+        templates = [template.json_serialize() for template in templates]
         return templates
     
     def initialize_parser(self):
@@ -198,6 +199,7 @@ class WebCatPipeline():
         labels = kwargs["labels"] if "labels" in kwargs else None
         self.load_categories(labels)
         self.load_entity_types()
+        text = self.parser.parse_raw_text(text)
         categories, entities, text = self.analyzer.analyze_content([text], **kwargs)
         entities = [{'id': 0, 'name': entity[0], 'type': entity[1], 'type_id': self.types_to_ids[entity[1]]} for entity in entities[0]]
         return {

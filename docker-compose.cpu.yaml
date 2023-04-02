@@ -18,9 +18,9 @@ services:
       - |
         cd /workspace/webcat_client
         npm start
-  
+
   webcat-server:
-    image: webcat/server
+    image: webcat/server-cpu
     restart: always
     ports:
       - '5000:5000'
@@ -29,22 +29,14 @@ services:
     volumes:
       - "${LOCAL_PATH}/data:/workspace/data"
       - "${LOCAL_PATH}/webcat:/workspace/webcat"
-      - "${LOCAL_PATH}/model_repository:/workspace/model_repository"
     command:
       - /bin/sh
       - "-c"
       - |
-        python3 /workspace/webcat/model_repository/download.py
-        python3 /workspace/webcat/run_api.py
+        cd /workspace
+        python3 webcat/model_repository/download.py
+        python3 webcat/run_api.py
       # python3 /workspace/webcat/wait.py
-        
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   postgres:
     image: postgres

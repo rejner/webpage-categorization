@@ -3,17 +3,43 @@ from os import path
 sys.path.append(path.dirname(__file__) + "/..")
 from models.classification.joeddav_xlm_roberta import XLMRobertaLarge
 from models.classification.bart_large_mnli import BARTLarge
+from models.classification.DeBERTa_v3_base_mnli import DeBerta_v3_base_mnli
 from models.ner.tweetner7 import TweetNER7
 import logging
+from models import list_all_models
 
 '''
     Analyzer class definition.
 '''
 class WebCatAnalyzer():
-    def __init__(self):
+    def __init__(self, models=None):
         # self.classifier = XLMRobertaLarge()
-        self.classifier = BARTLarge()
-        self.ner_model = TweetNER7()
+        # self.classifier = BARTLarge()
+        self.init_models(models)
+           
+    def init_models(self, models):
+        if models is None:
+            self.classifier = BARTLarge()
+            self.ner_model = TweetNER7()
+        else:
+            available_models = list_all_models()
+            # init classification mode
+            name = models['classification']
+            for model in available_models:
+                if model['base_class'].name == name:
+                    self.classifier = model['base_class']()
+            
+            # init ner model
+            name = models['ner']
+            for model in available_models:
+                if model['base_class'].name == name:
+                    self.ner_model = model['base_class']()
+        
+        logging.info("""
+        Initialized WebCatAnalyzer with the following models:
+        Classification: {}
+        NER: {}
+        """.format(self.classifier.name, self.ner_model.name))
 
     def analyze_content(self, content, **kwargs):
         try:

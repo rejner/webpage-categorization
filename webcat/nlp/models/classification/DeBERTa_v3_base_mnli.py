@@ -1,16 +1,16 @@
 from transformers import pipeline
 from transformers.pipelines.pt_utils import KeyDataset
 
-class BARTLarge():
-    path = "facebook/bart-large-mnli"
-    name = "BART Large MNLI"
-    size = "1.6 GB"
-    description = "A model trained on MNLI dataset using BART Large."
+class DeBerta_v3_base_mnli():
+    path = "MoritzLaurer/DeBERTa-v3-base-mnli"
+    name = "DeBERTa v3 base MNLI"
+    size = "720 MB"
+    description = "A model trained on MNLI dataset using Microsoft's DeBERTa v3 base architecture."
 
     def __init__(self, init_labels=None) -> None:
         self.labels = ["drugs", "hacking", "fraud", "counterfeit goods", "cybercrime", "cryptocurrency"] if init_labels is None else init_labels
         self.model = pipeline("zero-shot-classification",
-                model="webcat/model_repository/facebook/bart-large-mnli", framework="pt", device=0)
+                model="webcat/model_repository/MoritzLaurer/DeBERTa-v3-base-mnli", framework="pt", device=0)
         self.hypothesis_template = "Talks about {}."
         self.batch_size = 8
 
@@ -28,5 +28,5 @@ class BARTLarge():
     def classify_dataset(self, dataset, **kwargs):
         labels, hypothesis_template, batch_size = self.determine_params(**kwargs)
         dataset = KeyDataset(dataset, "text")
-        results = self.model(dataset, labels, multi_label=True, hypothesis_template=hypothesis_template, batch_size=batch_size)
+        results = self.model(dataset, labels, multi_label=True, hypothesis_template=hypothesis_template, batch_size=batch_size, truncation=True)
         return [dict(zip(result["labels"], result["scores"])) for result in results]

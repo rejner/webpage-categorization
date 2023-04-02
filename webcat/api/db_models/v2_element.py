@@ -19,12 +19,13 @@ class Element_v2(db.Model):
         
 
     def __repr__(self):
-        return f"Element_v2(id={self.id}, tag={self.tag}, parent_tag={self.parent_tag}, grandparent_tag={self.grandparent_tag}, depth={self.depth})"
+        return f"Element_v2(id={self.id}, tag={self.tag}, parent_tag={self.parent_tag}, grandparent_tag={self.grandparent_tag}, depth={self.depth} type_id={self.type_id})"
 
     def json_serialize(self):
         return {
             'id': self.id,
             'tag': self.tag,
+            'type_id': self.type_id,
             'parent_tag': self.parent_tag,
             'grandparent_tag': self.grandparent_tag,
             'depth': self.depth

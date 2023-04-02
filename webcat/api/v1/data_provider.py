@@ -1,6 +1,7 @@
 from flask_restful import Resource, reqparse, request
 from database import db
 from models_extension import *
+from sqlalchemy import or_
 import time
 from sqlalchemy.orm import contains_eager
 
@@ -27,6 +28,7 @@ class WebCatDataProvider(Resource):
         self.parser.add_argument('entity_values', type=str, action='append')
         self.parser.add_argument('file_names', type=str, action='append')
         self.parser.add_argument('file_paths', type=str, action='append')
+        self.parser.add_argument('authors', type=str, action='append')
         self.file_cache = {}
 
     def process_request(self, args):
@@ -34,10 +36,15 @@ class WebCatDataProvider(Resource):
         categories = args.get('categories', [])
         cat_threshold = args.get('cat_threshold', 0)
         entity_types = args.get('entity_types', [])
-        ent_threshold = args.get('ent_threshold', 0)
-        entity_values = args.get('entity_values', [])
-        file_names = args.get('file_names', [])
+        # ent_threshold = args.get('ent_threshold', 0)
+        # entity_values = args.get('entity_values', [])
+        # file_names = args.get('file_names', [])
         file_paths = args.get('file_paths', [])
+        authors = args.get('authors', [])
+        if file_paths:
+            file_paths = [fp for fp in file_paths if fp != '']
+        if authors:
+            authors = [a for a in authors if a != '']
         
         # build the query
         query = db.session.query(Content_v2)
@@ -55,9 +62,24 @@ class WebCatDataProvider(Resource):
             if 'all' not in entity_types:
                 # filter by entity types
                 entity_query = query.join(ContentMessage_v2).join(Message_v2, Message_v2.id == ContentMessage_v2.message_id).join(MessageEntity_v2, MessageEntity_v2.message_id == Message_v2.id).join(NamedEntity, NamedEntity.id == MessageEntity_v2.entity_id).join(EntityType, EntityType.id == NamedEntity.type_id).filter(EntityType.name.in_(entity_types))
-                if ent_threshold > 0:
-                    entity_query = entity_query.filter(NamedEntity.confidence >= ent_threshold)
                 query = query.intersect(entity_query)
+        
+        # filter enties on required paths
+        if file_paths:
+            # filter by file paths, file path can be in format */path/to/file or */middle/path/*
+            # Build a list of like conditions for each file path in file_paths
+            like_conditions = [File.path.like(fpath.replace('*', '%')) for fpath in file_paths]
+            # Join the like conditions together with the or_ operator
+            file_query = query.join(File, File.id == Content_v2.file_id).filter(or_(*like_conditions))
+            # Intersect the query with the file_query to get the final result
+            query = query.intersect(file_query)
+
+        if authors:
+            # filter by authors
+            like_conditions = [Content_v2.author.like("%" + author + "%") for author in authors]
+            author_query = query.filter(or_(*like_conditions))
+            query = query.intersect(author_query)
+            
 
         # execute the query and return the results
         return query.all()

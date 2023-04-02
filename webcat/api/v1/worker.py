@@ -46,6 +46,8 @@ class WebCatWorker():
             self.pipeline = WebCatPipeline(self.db)
         file_paths = self.create_files_list(files_path, **kwargs)
         # r1 = self.pipeline.process_files(file_paths, **kwargs)
+        # if len(file_paths) > 10000:
+        #     file_paths = file_paths[8800:8900]
         r1 = self.pipeline.process_files_as_dataset(file_paths, **kwargs)
         return r1
 

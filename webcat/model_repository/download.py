@@ -1,49 +1,34 @@
-from transformers import pipeline
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from transformers import AutoModelForTokenClassification
 import sys
 import os
 import logging
 logging.basicConfig(level=logging.INFO)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# import WebCatNERPipeline (gets registered as pipeline, accesible via pipeline("webcat-ner"))
-from webcat.nlp.models.ner.tweetner7 import WebCatNERPipeline
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from webcat.nlp.models import list_all_models
+from transformers import pipeline
 
-model_storage = "model_repository"
 
-models = {
-    "facebook/bart-large-mnli": {
-        "tokenizer": "facebook/bart-large-mnli",
-        "model": "facebook/bart-large-mnli",
-        "pipeline": "zero-shot-classification",
-        "model_class": AutoModelForSequenceClassification,
-        "tokenizer_class": AutoTokenizer 
-    },
-    "tner/twitter-roberta-base-dec2021-tweetner7-random": {
-        "tokenizer": "tner/twitter-roberta-base-dec2021-tweetner7-random",
-        "model": "tner/twitter-roberta-base-dec2021-tweetner7-random",
-        "pipeline": "webcat-ner",
-        "model_class": AutoModelForTokenClassification,
-        "tokenizer_class": AutoTokenizer
-    },
-}
+model_storage = "/workspace/webcat/model_repository"
+models = list_all_models()
 
-for model_name, model_info in models.items():
+for model in models:
     # test if model already exists
-    if os.path.exists(os.path.join(model_storage, model_name)):
-        logging.info(f"Model {model_name} already exists, skipping download.")
+    if os.path.exists(os.path.join(model_storage, model['model'])):
+        logging.info(f"Model {model['model']} already exists, skipping download.")
         # try to load model
         try:
-            tokenizer = model_info["tokenizer_class"].from_pretrained(os.path.join(model_storage, model_name))
-            model = model_info["model_class"].from_pretrained(os.path.join(model_storage, model_name))
-            pipe = pipeline(model_info["pipeline"], model=model, tokenizer=tokenizer)
+            tokenizer = model["tokenizer_class"].from_pretrained(os.path.join(model_storage, model['model']))
+            model = model["model_class"].from_pretrained(os.path.join(model_storage, model['model']))
+            pipe = pipeline(model["pipeline"], model=model, tokenizer=tokenizer)
         except Exception as e:
-            logging.error(f"Model {model_name} could not be loaded: {e}")
+            logging.error(f"Model {model['model']} could not be loaded: {e}")
         
         finally:
             continue
+    
+    logging.info(f"Downloading model {model['model']}")
+    logging.info(f"Path: {model['model']}")
 
-    tokenizer = model_info["tokenizer_class"].from_pretrained(model_info["tokenizer"])
-    model = model_info["model_class"].from_pretrained(model_info["model"])
-    pipe = pipeline(model_info["pipeline"], model=model, tokenizer=tokenizer)
-    pipe.save_pretrained(os.path.join(model_storage, model_name))
+    tokenizer = model["tokenizer_class"].from_pretrained(model["tokenizer"])
+    model = model["model_class"].from_pretrained(model["model"])
+    pipe = pipeline(model["pipeline"], model=model, tokenizer=tokenizer)
+    pipe.save_pretrained(os.path.join(model_storage, model['model']))
