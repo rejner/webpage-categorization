@@ -201,12 +201,16 @@ class WebCatPipeline():
         self.load_entity_types()
         text = self.parser.parse_raw_text(text)
         categories, entities, text = self.analyzer.analyze_content([text], **kwargs)
+        print(categories)
+        print(entities)
+        print(text)
         entities = [{'id': 0, 'name': entity[0], 'type': entity[1], 'type_id': self.types_to_ids[entity[1]]} for entity in entities[0]]
-        return {
+        res = {
             "categories": categories[0],
             "entities": entities,
             "text": text[0]
         }
+        return res
     
     def save_contents_to_db(self, contents):
         try:            # try to retrieve file from the database

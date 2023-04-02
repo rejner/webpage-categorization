@@ -13,7 +13,6 @@ class TweetNER7():
         self.tokenizer = AutoTokenizer.from_pretrained("webcat/model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")
         self.model = AutoModelForTokenClassification.from_pretrained("webcat/model_repository/tner/twitter-roberta-base-dec2021-tweetner7-random")
         self.model.to("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to("cuda")
         self.model.eval()
 
         self.NER_MAPPING = {
@@ -205,7 +204,8 @@ class TweetNER7():
 
     def classify(self, inputs):
         x = self.tokenizer(inputs, return_tensors="pt", padding=True)
-        x = x.to("cuda")
+        if torch.cuda.is_available():
+            x = x.to("cuda")
         y = self.model(**x)
         logits = y.logits.to("cpu")
         res = [logits[i].argmax(axis=-1).numpy() for i in range(len(inputs))]
@@ -219,7 +219,7 @@ class TweetNER7():
     
     def classify_dataset(self, dataset):
         dataset = KeyDataset(dataset, "text")
-        pipe = pipeline("webcat-ner", model=self.model, tokenizer=self.tokenizer, device=0)
+        pipe = pipeline("webcat-ner", model=self.model, tokenizer=self.tokenizer, device=0 if torch.cuda.is_available() else -1)
         res = pipe(dataset, batch_size=1)
         entities = []
         texts = []

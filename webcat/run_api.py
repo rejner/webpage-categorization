@@ -2,6 +2,8 @@ import os
 # load .env file
 from dotenv import load_dotenv
 load_dotenv()
+import logging
+logging.basicConfig(level=logging.INFO)
 
 import sys
 sys.path.append(os.path.dirname(__file__))

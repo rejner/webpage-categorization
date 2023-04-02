@@ -44,7 +44,9 @@ class WebCatAnalyzer():
     def analyze_content(self, content, **kwargs):
         try:
             categories = self.classify(content, **kwargs)
+            logging.info(categories)
             entities, text = self.perform_NER(content, **kwargs)
+            logging.info(entities)
             return categories, entities, text
         except Exception as e:
             print(e)
