@@ -1,5 +1,6 @@
 from transformers import pipeline
 from transformers.pipelines.pt_utils import KeyDataset
+import torch
 
 class BARTLarge():
     path = "facebook/bart-large-mnli"
@@ -10,7 +11,7 @@ class BARTLarge():
     def __init__(self, init_labels=None) -> None:
         self.labels = ["drugs", "hacking", "fraud", "counterfeit goods", "cybercrime", "cryptocurrency"] if init_labels is None else init_labels
         self.model = pipeline("zero-shot-classification",
-                model="webcat/model_repository/facebook/bart-large-mnli", framework="pt", device=0)
+                model="webcat/model_repository/facebook/bart-large-mnli", framework="pt", device=0 if torch.cuda.is_available() else -1)
         self.hypothesis_template = "Talks about {}."
         self.batch_size = 8
 

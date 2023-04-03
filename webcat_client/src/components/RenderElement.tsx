@@ -33,7 +33,7 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
               id: 0,
               parent_tag: el.parentElement?.tagName.toLowerCase() || "",
               grandparent_tag: el.parentElement?.parentElement?.tagName.toLowerCase() || "",
-              depth: depth,
+              depth: depth+1,
           };
           addElement(newElement);
       }

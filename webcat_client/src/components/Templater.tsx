@@ -144,7 +144,7 @@ function Templater() {
                     {!doc && <h4 className='text-light mt-4'>Select file to be parsed...</h4>}
                 {doc &&
                     <Container className="bg-none text-light mt-1 h-25 overflow-auto border-bottom border-dark" style={{maxHeight: "60vh", minHeight: "60vh"}}>
-                        <RenderElement el={doc.body} depth={0} />
+                        <RenderElement el={doc.body} depth={1} />
                     </Container>
                 }
                 </Container>
