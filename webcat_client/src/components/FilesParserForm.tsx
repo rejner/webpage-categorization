@@ -34,6 +34,7 @@ function FilesParserForm() {
     const [nerModel, setNerModel] = React.useState<ModelSpecs>();
     const [showModelSelection, setShowModelSelection] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [saveFiles, setSaveFiles] = React.useState(true);
     // Read server_ip and server_port from the context
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
@@ -70,6 +71,7 @@ function FilesParserForm() {
             "labels": labels.split(','),
             "path": path,
             "recursive": useRecursive,
+            "save": saveFiles,
             "models": JSON.stringify({
                 "classification": classificationModel?.name,
                 "ner": nerModel?.name
@@ -216,19 +218,14 @@ function FilesParserForm() {
                     </Form.Group>
 
 
-                    <Row className="mb-3">
-                        <Col xs={2}>
+                    <Stack direction='vertical' gap={1}>
                             <Form.Group className="mb-3" controlId="formUseRecursive">
                                 <Form.Check type="checkbox" label="Use reccursive path resolution" className='text-light' checked={useRecursive} onChange={(e) => setUseRecursive(e.target.checked)}/>
                             </Form.Group>
-                        </Col>
-
-                        {/* <Col>
-                            <Button variant="primary" onClick={openFileSelector}>
-                                Select Files/Directory
-                            </Button>
-                        </Col> */}
-                    </Row>
+                            <Form.Group className="mb-3" controlId="formSaveFiles">
+                                <Form.Check type="checkbox" label="Save files to the database" className='text-light' checked={saveFiles} onChange={(e) => setSaveFiles(e.target.checked)}/>
+                            </Form.Group>
+                    </Stack>
 
                     <Button variant="primary" type="submit" className='w-25'>
                         {isSubmitting && <Spinner animation="border" size="sm" />}

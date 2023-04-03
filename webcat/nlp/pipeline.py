@@ -59,6 +59,7 @@ class WebCatPipeline():
             labels_to_ids[label] = category.id
 
         self.labels_to_ids = labels_to_ids
+        self.ids_to_labels = {v: k for k, v in labels_to_ids.items()}
 
     def load_entity_types(self):
         types_supported = self.analyzer.ner_model.get_entity_types()
@@ -76,6 +77,7 @@ class WebCatPipeline():
             types_to_ids[type] = entity_type.id
 
         self.types_to_ids = types_to_ids
+        self.ids_to_types = {v: k for k, v in types_to_ids.items()}
 
     def analyze_files_content(self, contents, **kwargs):
         contents = [content for content in contents if content]
@@ -91,15 +93,20 @@ class WebCatPipeline():
         #     "author": str,
         # }
         # filter any hashes that are already in the database
-        hashes = [content['hash'] for content in contents]
-        hashes_in_db = self.db.session.query(Content_v2.hash).filter(Content_v2.hash.in_(hashes)).all()
-        hashes_in_db = [hash[0] for hash in hashes_in_db]
-        contents_tmp = [content for content in contents if content['hash'] not in hashes_in_db]
+        if kwargs.get("save", True):
+            hashes = [content['hash'] for content in contents]
+            hashes_in_db = self.db.session.query(Content_v2.hash).filter(Content_v2.hash.in_(hashes)).all()
+            hashes_in_db = [hash[0] for hash in hashes_in_db]
+            contents_tmp = [content for content in contents if content['hash'] not in hashes_in_db]
+        else:
+            contents_tmp = contents
+
         # now filter any hashes that are duplicates
         filter_stats = {
             "total": len(contents),
             "duplicate": len(contents) - len(contents_tmp),
         }
+        # remove any duplicities within the same contents
         hash_index = {}
         contents_filtered = []
         for i, content in enumerate(contents_tmp):
@@ -193,7 +200,12 @@ class WebCatPipeline():
                     stats_all[key] += stats[key]
                 if len(analyzed_content) == 0:
                     continue
-                saved_content = self.save_contents_to_db(analyzed_content)
+
+                if kwargs.get("save", True):
+                    saved_content = self.save_contents_to_db(analyzed_content)
+                else:
+                    saved_content = self.fake_save_contents_to_db(analyzed_content)
+
                 analyzed_objects.extend(saved_content)
             except Exception as e:
                 logging.error(f"Error analyzing file: {file_content[0]['file_path']}")
@@ -265,6 +277,44 @@ class WebCatPipeline():
         except Exception as e:
             self.db.session.rollback()
             logging.error(f"Error while saving content to database: {e}")
+            return None
+        
+        return db_contents
+
+    def fake_save_contents_to_db(self, contents):
+        try:            # try to retrieve file from the database
+            file_path = contents[0]['file_path']
+            filename = os.path.basename(file_path)
+            file = File(filename, file_path)
+
+            db_contents = []
+            for content in contents:
+                try:
+                    # create new content entry in the database
+                    db_content = Content_v2(content['hash'], content['author'], content['header'])
+                    db_content.file = file
+                    messages = []
+                    for cats, ents, text in zip(content['categories'], content['entities'], content['message']):
+                        message = Message_v2(text)
+                        message.categories = [MessageCategory_v2(0, self.labels_to_ids[label], conf) for label, conf in cats.items()]
+                        for mes_cat in message.categories:
+                            mes_cat.category = Category(self.ids_to_labels[mes_cat.category_id])
+                        ents = [ent for ent in ents if ent['type']['name'] in self.types_to_ids and ent['name'] != '' and ent['name'] != ' ']
+                        named_entities = [NamedEntity(entity['name'], self.types_to_ids[entity['type']['name']]) for entity in ents]
+                        for named_entity in named_entities:
+                            named_entity.type = EntityType(self.ids_to_types[named_entity.type_id], '')
+                        message.entities = named_entities
+                        messages.append(message)
+                    db_content.messages = messages
+                
+                except Exception as e:
+                    logging.error(f"Error while fake saving content to database: {e}")
+                    return None
+
+                db_contents.append(db_content)
+        
+        except Exception as e:
+            logging.error(f"Error while fake saving content to database: {e}")
             return None
         
         return db_contents

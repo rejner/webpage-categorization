@@ -14,6 +14,7 @@ files_parser.add_argument('hypothesis_template', type=str)
 files_parser.add_argument('labels', type=str, action='append')
 files_parser.add_argument('path', type=str)
 files_parser.add_argument('recursive', type=bool)
+files_parser.add_argument('save', type=bool)
 files_parser.add_argument('models', type=str)
 
 # worker = WebCatWorker(db)
