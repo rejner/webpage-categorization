@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stack, Container, Button, Form, Row, Col } from 'react-bootstrap';
+import { Stack, Container, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
 import { useFilePicker, Validator } from 'use-file-picker';
 import { AppContext } from '../index';
 import {Content, Content_v2, Entity, entity_color_mapping} from '../models/Content';
@@ -33,6 +33,7 @@ function FilesParserForm() {
     const [classificationModel, setClassificationModel] = React.useState<ModelSpecs>();
     const [nerModel, setNerModel] = React.useState<ModelSpecs>();
     const [showModelSelection, setShowModelSelection] = React.useState(false);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
     // Read server_ip and server_port from the context
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
@@ -61,6 +62,7 @@ function FilesParserForm() {
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         console.log(`Hypothesis Template: ${hypothesisTemplate} Labels: ${labels} Path: ${path} Use Recursive: ${useRecursive}`);
+        setIsSubmitting(true);
 
         // Construct the request body, which is a JSON object
         const requestBody = {
@@ -134,7 +136,9 @@ function FilesParserForm() {
             setContent_v2(contents);
             setStats(stats);
         }, error => console.log("Error: " + error)
-        )
+        ).finally(() => {
+            setIsSubmitting(false);
+        });
     }
 
     return (
@@ -226,8 +230,9 @@ function FilesParserForm() {
                         </Col> */}
                     </Row>
 
-                    <Button variant="primary" type="submit">
-                        Parse
+                    <Button variant="primary" type="submit" className='w-25'>
+                        {isSubmitting && <Spinner animation="border" size="sm" />}
+                        {!isSubmitting && <span>Submit</span>}
                     </Button>
                 </Form>
                 {
