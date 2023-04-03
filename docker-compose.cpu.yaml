@@ -38,6 +38,8 @@ services:
         python3 webcat/run_api.py
       # python3 /workspace/webcat/wait.py
 
+      
+
   postgres:
     image: postgres
     restart: always

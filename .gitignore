@@ -16,3 +16,4 @@ playground/openai-quickstart-python
 webcat/.env
 webcat/model_repository/*
 !webcat/model_repository/download.py
+.env

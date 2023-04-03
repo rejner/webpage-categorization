@@ -28,6 +28,7 @@ RUN pip3 install torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install datasets
 RUN pip install openai==0.27.0
 RUN pip install sentencepiece
+RUN pip install protobuf
 
 # expose port 5000
 EXPOSE 5000
