@@ -15,3 +15,6 @@ Automatic webpage content categorisation and extraction
 
 # Run server:
 # flask --app launch.py --debug run
+
+
+# .env files in the root of the project and in webcat directory have to be set. (Modify .env.example files and replace them wiht your config)
