@@ -14,11 +14,20 @@ class WebCatPipeline():
     def __init__(self, db, models):
         self.db = db
         self.initialize_parser()
+        self.models = models
         self.analyzer = WebCatAnalyzer(models)
         self.batch_size = 16
         self.max_queue_size = 1000
         self.queue = mp.Queue(maxsize=self.max_queue_size)
         logging.info(f"Initialized pipeline.")
+
+    def keep_cached_pipeline(self, models):
+        old_models = self.models
+        self.models = models
+        if old_models != models:
+            return False
+        logging.info(f"Keeping cached pipeline.")
+        return True
 
     def fetch_templates(self, version=2):
         templates = []

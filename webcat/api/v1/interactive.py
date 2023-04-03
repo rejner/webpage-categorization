@@ -14,11 +14,13 @@ interactive_parser.add_argument('labels', type=str, action='append')
 interactive_parser.add_argument('input', type=str)
 interactive_parser.add_argument('models', type=str)
 
+pipeline = None
+
 class WebCatInteractive(Resource):
     def __init__(self):
         super().__init__()
         # self.worker = WebCatWorker(db)
-        self.pipeline = None
+        # self.pipeline = None
 
     def verify_interactive_request(self, args):
         if args['hypothesis_template'] is None or args['hypothesis_template'] == "":
@@ -44,10 +46,11 @@ class WebCatInteractive(Resource):
         models = args['models']
         models = json.loads(models)
 
-        if not self.pipeline:
-            self.pipeline = WebCatPipeline(db, models)
+        global pipeline
+        if pipeline is None or not pipeline.keep_cached_pipeline(models):
+            pipeline = WebCatPipeline(db, models)
 
-        result = self.pipeline.process_raw_text(args['input'],**{'hypothesis_template': args['hypothesis_template'], 
+        result = pipeline.process_raw_text(args['input'],**{'hypothesis_template': args['hypothesis_template'], 
                                                         'labels': args['labels'],})
 
         # result = self.worker.process_raw_text(args['input'], 

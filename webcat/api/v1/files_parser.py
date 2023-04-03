@@ -17,11 +17,12 @@ files_parser.add_argument('recursive', type=bool)
 files_parser.add_argument('models', type=str)
 
 # worker = WebCatWorker(db)
+pipeline = None
 
 class WebCatFilesParser(Resource):
     def __init__(self):
         super().__init__()
-        self.pipeline = None
+        # self.pipeline = None
 
     def verify_request(self, args):
         if args['hypothesis_template'] is None or args['hypothesis_template'] == "":
@@ -91,11 +92,12 @@ class WebCatFilesParser(Resource):
         models = json.loads(models)
 
         try:
-            if not self.pipeline:
-                self.pipeline = WebCatPipeline(db, models)
+            global pipeline
+            if pipeline is None or not pipeline.keep_cached_pipeline(models):
+                pipeline = WebCatPipeline(db, models)
             
             file_paths = self.create_files_list(args['path'], recursive=args['recursive'])
-            contents, stats = self.pipeline.process_files_as_dataset(file_paths, **args)
+            contents, stats = pipeline.process_files_as_dataset(file_paths, **args)
         except Exception as e:
             logging.error(e.with_traceback(None))
             return {'error': str(e)}, 400
