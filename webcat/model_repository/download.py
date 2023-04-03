@@ -7,7 +7,7 @@ from webcat.nlp.models import list_all_models
 from transformers import pipeline
 
 
-model_storage = "/workspace/webcat/model_repository"
+model_storage = "webcat/model_repository"
 models = list_all_models()
 
 for model in models:
@@ -17,8 +17,8 @@ for model in models:
         # try to load model
         try:
             tokenizer = model["tokenizer_class"].from_pretrained(os.path.join(model_storage, model['model']))
-            model = model["model_class"].from_pretrained(os.path.join(model_storage, model['model']))
-            pipe = pipeline(model["pipeline"], model=model, tokenizer=tokenizer)
+            mod = model["model_class"].from_pretrained(os.path.join(model_storage, model['model']))
+            pipe = pipeline(model["pipeline"], model=mod, tokenizer=tokenizer)
         except Exception as e:
             logging.error(f"Model {model['model']} could not be loaded: {e}")
         
@@ -29,6 +29,6 @@ for model in models:
     logging.info(f"Path: {model['model']}")
 
     tokenizer = model["tokenizer_class"].from_pretrained(model["tokenizer"])
-    model = model["model_class"].from_pretrained(model["model"])
-    pipe = pipeline(model["pipeline"], model=model, tokenizer=tokenizer)
+    mod = model["model_class"].from_pretrained(model["model"])
+    pipe = pipeline(model["pipeline"], model=mod, tokenizer=tokenizer)
     pipe.save_pretrained(os.path.join(model_storage, model['model']))
