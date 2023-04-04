@@ -54,29 +54,31 @@ def find_best_hypothesis_template(dataset, models, categories):
     hypothesis_template = "This article delves into the topic of {}." # 0.54
 
     # put all templates into list
-    hypothesis_templates = ["The topic of this article is {}.", "This article is about {}.", "This example is about {}.", "This text is about {}.", "The main subject of this text is {}.", "The focus of this writing is on {}.", "The primary topic of discussion in this text is {}.", "This article discusses {}.", "The main idea presented in this text is {}.", "The primary subject matter of this article is {}.", "The subject of this article is {}.", "This text covers the topic of {}.", "This article examines {}.", "The main focus of this text is {}.", "This article presents information on {}.", "The main topic covered in this text is {}.", "The central theme of this article is {}.", "This text provides insights into {}.", "The primary objective of this article is to discuss {}.", "This text examines the topic of {} in depth.", "The topic of this text is {}.", "This article delves into the topic of {}."]
+    hypothesis_templates = ["The topic of this article is {}.", "This article is about {}.", "This example is about {}.", "This text is about {}.", "The main subject of this text is {}.", "The focus of this writing is on {}.", "The primary topic of discussion in this text is {}.", "This article discusses {}.", "The main idea presented in this text is {}.", "The primary subject matter of this article is {}.", "The subject of this article is {}.", "This text covers the topic of {}.", "This article examines {}.", "The main focus of this text is {}.", "This article presents information on {}.", "The main topic covered in this text is {}.", "The central theme of this article is {}.", "This text provides insights into {}.", "This text examines the topic of {} in depth.", "The topic of this text is {}.", "This article delves into the topic of {}."]
     # hypothesis_templates = [
     #     "The main focus of this text on {}.", "This example is about {}.", "This example is mainly about {}."
     # ]
-    hypothesis_templates = [
-        "This text examines the topic of {} in depth.", "The subject of this article is {}.", "This text covers the topic of {}.", "This example is about {}."
-    ]
+    # hypothesis_templates = [
+    #     "This text examines the topic of {} in depth.", "The subject of this article is {}.", "This text covers the topic of {}.", "This example is about {}."
+    # ]
 
+    template_stats = {}
 
     for model in models:
         if model['task'] != 'classification':
             continue
 
         print(f"Model: {model['model']}")
-        if model['model'] != "facebook/bart-large-mnli":
-            continue
+        template_stats[model['model']] = {}
+        # if model['model'] != "facebook/bart-large-mnli":
+        # if model['model'] != "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli" or model['model'] != "MoritzLaurer/DeBERTa-v3-base-mnli":
+        #     continue
 
 
         tokenizer = model["tokenizer_class"].from_pretrained(model_dir + "/" + model['model'])
         mod = model["model_class"].from_pretrained(model_dir + "/" + model['model'])
         pipe = pipeline(model["pipeline"], model=mod, tokenizer=tokenizer, device=0, framework="pt")
 
-        template_stats = {}
         for hypothesis_template in hypothesis_templates:
 
             predictions = []
@@ -96,18 +98,26 @@ def find_best_hypothesis_template(dataset, models, categories):
                 precisions.append(precision)
                 recalls.append(recall)
             
+            if len(precisions) == 0 or len(recalls) == 0:
+                print("wtf")
+
+            print("----------------------------------")
+            print(f"Template: {hypothesis_template}")
             print(f"Precision: {sum(precisions) / len(precisions)}")
             print(f"Recall: {sum(recalls) / len(recalls)}")
             print(f"F1: {2 * (sum(precisions) / len(precisions)) * (sum(recalls) / len(recalls)) / ((sum(precisions) / len(precisions)) + (sum(recalls) / len(recalls)))}")
-            
-            template_stats[hypothesis_template] = {
+            print("----------------------------------")
+
+            template_stats[model['model']][hypothesis_template] = {
                 "precision": sum(precisions) / len(precisions),
                 "recall": sum(recalls) / len(recalls),
                 "f1": 2 * (sum(precisions) / len(precisions)) * (sum(recalls) / len(recalls)) / ((sum(precisions) / len(precisions)) + (sum(recalls) / len(recalls)))
             }
 
-        print(template_stats)
-        print(f"Best template: {max(template_stats, key=lambda key: template_stats[key]['f1'])}")
+        # print(f"Best template: {max(template_stats, key=lambda key: template_stats[key]['f1'])}")
+
+    # pretty print dict
+    print(json.dumps(template_stats, indent=5))
 
 
 def evaluate_sample(predictions, true_labels):
@@ -164,7 +174,7 @@ if __name__ == "__main__":
     #     print(dataset[i])
         
     # take only 200 examples
-    dataset = dataset.select(range(100))
+    dataset = dataset.select(range(1000)).shuffle()
 
     # create a new column from headline and short_description (map function)
     dataset = dataset.map(concat_text, batched=False)

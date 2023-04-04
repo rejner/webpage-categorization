@@ -28,7 +28,7 @@ RUN pip3 install --default-timeout=100 torch --index-url https://download.pytorc
 RUN pip install datasets
 RUN pip install openai==0.27.0
 RUN pip install sentencepiece
-RUN pip install protobuf
+RUN pip install protobuf==3.20.0
 
 # expose port 5000
 EXPOSE 5000
