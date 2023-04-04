@@ -24,7 +24,7 @@ RUN pip install beautifulsoup4
 RUN pip install joblib
 RUN pip install transformers
 RUN pip install nltk
-RUN pip3 install torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip3 install --default-timeout=100 torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install datasets
 RUN pip install openai==0.27.0
 RUN pip install sentencepiece
