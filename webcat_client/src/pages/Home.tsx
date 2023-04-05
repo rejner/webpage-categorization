@@ -7,26 +7,28 @@ import { Col, Form, Row } from 'react-bootstrap';
 
 
 
+
 function Home() {
-  var { server_ip, server_port, server_api } = React.useContext(AppContext);
+  const { server_ip, setServerIp, server_port, setServerPort, server_api, setServerApi } = React.useContext(AppContext);
   const [ serverUp, setServerUp ] = React.useState(false);
-  const [ serverIp, setServerIp ] = React.useState(server_ip);
-  const [ serverPort, setServerPort ] = React.useState(server_port);
-  const [ serverApi, setServerApi ] = React.useState(server_api);
+  // const [ serverIpInput, setServerIpInput ] = React.useState(server_ip);
+  // const [ serverPortInput, setServerPortInput ] = React.useState(server_port);
+  // const [ serverApiInput, setServerApiInput ] = React.useState(server_api);
 
   // ping server
-  React.useEffect (() => {
-    const ping_server = async () => {
-      const response = await fetch(`http://${server_ip}:${server_port}${server_api}/ping`);
-      const data = await response.json();
-      if (data.message === 'pong') {
-        setServerUp(true);
-      } else {
-        setServerUp(false);
-      }
+  const ping_server = async () => {
+    const response = await fetch(`http://${server_ip}:${server_port}${server_api}/ping`);
+    const data = await response.json();
+    if (data.message === 'pong') {
+      setServerUp(true);
+    } else {
+      setServerUp(false);
     }
+  }
+
+  React.useEffect (() => {
     ping_server();
-  }, [server_ip, server_port, server_api]);
+  }, []);
 
   React.useEffect(() => {
   }, [serverUp]);
@@ -34,7 +36,7 @@ function Home() {
   function reConnect() {
     // ping server
     const ping_server = async () => {
-      const response = await fetch(`http://${serverIp}:${serverPort}${serverApi}/ping`).catch((error) => {
+      const response = await fetch(`http://${server_ip}:${server_port}${server_api}/ping`).catch((error) => {
         setServerUp(false);
         return;
       });
@@ -49,9 +51,6 @@ function Home() {
       if (data && data.message === 'pong') {
         setServerUp(true);
         // update context
-        server_ip = serverIp;
-        server_port = serverPort;
-        server_api = serverApi;
       }
 
     }
@@ -77,15 +76,15 @@ function Home() {
         }>
           <Form.Group controlId="formBasicEmail">
             <Form.Label>Server IP</Form.Label>
-            <Form.Control type="text" placeholder="Enter server IP" value={serverIp} onChange={(e) => setServerIp(e.target.value)} />
+            <Form.Control type="text" placeholder="Enter server IP" value={server_ip} onChange={(e) => setServerIp(e.target.value)} />
           </Form.Group>
           <Form.Group controlId="formBasicPassword">
             <Form.Label>Server Port</Form.Label>
-            <Form.Control type="text" placeholder="Enter server port" value={serverPort} onChange={(e) => setServerPort(e.target.value)} />
+            <Form.Control type="text" placeholder="Enter server port" value={server_port} onChange={(e) => setServerPort(e.target.value)} />
           </Form.Group>
           <Form.Group controlId="formBasicPassword">
             <Form.Label>Server API</Form.Label>
-            <Form.Control type="text" placeholder="Enter server API" value={serverApi} onChange={(e) => setServerApi(e.target.value)} />
+            <Form.Control type="text" placeholder="Enter server API" value={server_api} onChange={(e) => setServerApi(e.target.value)} />
           </Form.Group>
           {/* submit */}
           <button type="submit" className="btn btn-primary mt-3">Connect</button>

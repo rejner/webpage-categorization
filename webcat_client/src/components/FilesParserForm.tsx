@@ -24,7 +24,7 @@ export interface ModelSpecs {
 
 function FilesParserForm() {
     const [hypothesisTemplate, setHypothesisTemplate] = React.useState("This example is about {}.");
-    const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency,delivery");
+    const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cryptocurrency,delivery,weapons");
     const [path, setPath] = React.useState("");
     const [useRecursive, setUseRecursive] = React.useState(false);
     const [content_v2, setContent_v2] = React.useState() as [[Content_v2], any];

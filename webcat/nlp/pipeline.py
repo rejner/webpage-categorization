@@ -225,7 +225,7 @@ class WebCatPipeline():
         print(categories)
         print(entities)
         print(text)
-        entities = [{'id': 0, 'name': entity[0], 'type': entity[1], 'type_id': self.types_to_ids[entity[1]]} for entity in entities[0]]
+        entities = [{'id': 0, 'name': entity[0], 'type': entity[1], 'type_id': self.types_to_ids[entity[1]]} for entity in entities[0] if entity[1] in self.types_to_ids and entity[0] != '']
         res = {
             "categories": categories[0],
             "entities": entities,

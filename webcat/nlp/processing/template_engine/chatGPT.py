@@ -6,6 +6,7 @@ import bs4
 from .base import TemplateEngine
 from .exceptions import MissingOpenAIKeyError
 import re
+import logging
 
 class ChatGPTTemplateEngine(TemplateEngine):
     """
@@ -52,9 +53,9 @@ class ChatGPTTemplateEngine(TemplateEngine):
     """
     def __init__(self) -> None:
         super().__init__()
-        self.MAX_INPUT_LENGTH = 512
-        self.MAX_LINE_LENGTH = 64
-        self.START_OFFSET = 256
+        self.MAX_INPUT_LENGTH = 1024
+        self.MAX_LINE_LENGTH = 32
+        self.START_OFFSET = 0
         # self.PROMPT_START = "Analyze the text I give you and output only a JSON array with the found segments \"post-header\", \"post-author\" and \"post-message\". I need you to segment this raw text extracted from HTML of a forum. Each newline character delimiters a logical section of a DOM tree. The value of the segment should be the exact matched text. Try to extract at least 3 posts. The input is:\n\n"
         self.PROMPT_START = "I want you to act as a data extraction tool and extract post titles, post authors, and post messages from raw text extracted from HTML code of a forum website. The raw text is separated by newline characters and the desired output is a JSON array of objects in the format [{\"post-title\": \"some title\", \"post-author\": \"some author\", \"post-message\": \"some message\"}]. Your task is to segment the raw text and extract the required information from each segment. Remember that each segment contains only one part of the required information. The input is:\n\n"
         self.SYSTEM_PROMPT = "You are a server for analyzing text data, responding in JSON array format according to instructions."
@@ -109,7 +110,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
         }
         
         """
-        print("Analyzing text...")
+        logging.info("Analyzing text...")
         prompt = self.PROMPT_START + text
         payload = [
             {
@@ -129,21 +130,19 @@ class ChatGPTTemplateEngine(TemplateEngine):
             messages=payload,
             temperature=0.1,
         )
-        print("Response:")
-        print("-"*100)
-        print(response)
-        print("-"*100)
+        logging.info("Response:")
+        logging.info("-"*100)
+        logging.info(response)
+        logging.info("-"*100)
 
         # load dictionary into object
         response = Struct(response)
         output = response.choices[0].message.content
-
+        total_tokens = response.usage.total_tokens
+        return output, prompt, total_tokens
         
         # output = "Here is the output in the required format:\n\n[{\"post-title\": \"Does anyone need samples? I'm an old vendor from S\", \"post-author\": \"SupremeSmoke\", \"post-message\": \"I used to be an avid member of Silk road 1 but after losing ever\"}]"
-        output = self.verify_output(output)
-        
-        # return output
-        return json.loads(output)
+
 
     def verify_output(self, output:str):
        
@@ -384,7 +383,15 @@ class ChatGPTTemplateEngine(TemplateEngine):
             Generates a template from a given file.
         """
         text, soup = self.parse_html(file_path)
-        segments = self.analyze_text(text)
+        
+        try:
+            output, prompt, total_tokens = self.analyze_text(text)
+            output = self.verify_output(output)
+            segments = json.loads(output)
+        except Exception as e:
+            print(e)
+            return None, (output, prompt, total_tokens)
+
         # replace keys "post-title" with "post-header"
         segments = [{k.replace("post-title", "post-header"): v for k, v in segment.items()} for segment in segments]
         candidates = self.analyze_segments(segments, soup)
@@ -437,7 +444,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
         template_proposal["perfect_match"] = perfect_match
         template_proposal["contents"] = contents
         template_proposal["elements"] = obj_elements
-        return template_proposal
+        return template_proposal, (output, prompt, total_tokens)
 
     def pretty_print(self, template):
         """

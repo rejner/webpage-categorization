@@ -40,6 +40,14 @@ interface TemplateProposal {
 
 }
 
+interface TemplateEngineResponse {
+    'template': TemplateProposal,
+    'error': string,
+    'response': string,
+    'prompt': string,
+    'total_tokens': string,
+}
+
 function TemplaterAuto() {
     const [availableModels, setAvailableModels] = useState<ModelSpecs[]>([]);
     const [selectedModel, setSelectedModel] = useState<ModelSpecs>();
@@ -48,6 +56,10 @@ function TemplaterAuto() {
     const [filePath, selectFilePah] = useState('');
     const [apiKey, setApiKey] = useState('');
     const [isParsing, setIsParsing] = useState(false);
+    const [modelResponse, setModelResponse] = useState<string>();
+    const [modelPrompt, setModelPrompt] = useState<string>();
+    const [totalTokens, setTotalTokens] = useState<string>();
+
 
     useEffect(() => {
         // fetch available models from server
@@ -81,14 +93,27 @@ function TemplaterAuto() {
         .then(response => response.json(), error => console.log("Error: " + error))
         .then(data => {
             if (data.error) {
-                alert(data.error);
                 setIsParsing(false);
+                if (data.response) {
+                    setModelResponse(data.response);
+                }
+                if (data.prompt) {
+                    setModelPrompt(data.prompt);
+                }
+                if (data.total_tokens) {
+                    setTotalTokens(data.total_tokens);
+                }
+                alert(data.error);
                 return;
             }
             data = JSON.parse(data);
-            let proposal: TemplateProposal = data;
+            let response: TemplateEngineResponse = data;
+            let proposal: TemplateProposal = response.template;
             console.log(proposal);
             setTemplateProposal(proposal);  
+            setModelResponse(response.response);
+            setModelPrompt(response.prompt);
+            setTotalTokens(response.total_tokens);
             setIsParsing(false);
         });
     }
@@ -171,11 +196,10 @@ function TemplaterAuto() {
  
                 <Stack direction="horizontal" gap={3}>
 
-                    <Button className="mt-4" variant="primary" onClick={parseFile}>Parse File</Button>
+                    <Button className="mt-4" variant="primary" onClick={parseFile}>
+                        {isParsing ? <Spinner animation="border" size="sm" /> : 'Parse File'}
+                    </Button>
                     
-                    {isParsing &&
-                        <Spinner className="mt-4" animation="border" />
-                    }
                     {templateProposal &&
                         <Button className="mt-4" variant="success" onClick={() => saveTemplate()}>Save Template</Button>
                     }
@@ -245,6 +269,26 @@ function TemplaterAuto() {
             </div>
             }
         </Container>
+        
+        <Stack direction="vertical" gap={3} className="mb-5 text-light">
+            { totalTokens &&
+            <>
+                <h3>Total Tokens: {totalTokens}</h3>
+            </>
+            }
+            { modelPrompt && 
+            <>  
+                <h3>Model Prompt</h3>
+                <p>{modelPrompt}</p>
+            </>
+            }
+            { modelResponse &&
+            <>
+                <h3>Model Response</h3>
+                <p>{modelResponse}</p>
+            </>
+            }
+        </Stack>
         </>    
       );
 

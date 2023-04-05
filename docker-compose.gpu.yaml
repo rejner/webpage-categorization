@@ -29,7 +29,6 @@ services:
     volumes:
       - "${LOCAL_PATH}/data:/workspace/data"
       - "${LOCAL_PATH}/webcat:/workspace/webcat"
-      - "${LOCAL_PATH}/model_repository:/workspace/model_repository"
     command:
       - /bin/sh
       - "-c"

@@ -130,19 +130,31 @@ class WebCatTemplates(Resource):
                 engine.setKey(key)
             
             try:  
-                proposal = engine.template_from_file(file)
+                proposal, (response, prompt, total_tokens) = engine.template_from_file(file)
             except Exception as e:
                 logging.warn(f"Error while creating template from file: {e}")
-                return {'error': "Error while creating template from file"}, 400
+                return {'error': "Error while creating template from file", 
+                        'response': response,
+                        'prompt': prompt,
+                        'total_tokens': total_tokens}, 400
 
             # logging.warn(f"Received request for template creation from engine service. Model: {model}, file: {file}, key: {key}")
             if proposal is None:
-                return {'error': "Template creation was not successful"}, 400
+                return {'error': "Template creation was not successful.",
+                        'response': response,
+                        'prompt': prompt,
+                        'total_tokens': total_tokens
+                        }, 400
 
         except Exception as e:
             return {'error': str(e)}, 400
         
-        return json.dumps(proposal), 200
+        return json.dumps({
+            'template': proposal,
+            'response': response,
+            'prompt': prompt,
+            'total_tokens': total_tokens
+        }), 200
 
     def post(self, service):
         if service == 'manager':
