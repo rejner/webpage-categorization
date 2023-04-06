@@ -1,7 +1,7 @@
 import os
 from .processing.parser import WebCatParser
 from .processing.analyzer import WebCatAnalyzer
-from api.models_extension import *
+# from api.models_extension import *
 import timeit 
 import multiprocessing as mp
 import logging
@@ -9,6 +9,7 @@ import time
 import datasets
 import time
 import psycopg2
+from api.models_extension import Attribute, AttributeCategory, AttributeEntity, AttributeType, Category, Content, ContentAttribute, Element, ElementType, File, NamedEntity, NamedEntityType, Template, TemplateElement
 
 class WebCatPipeline():
     def __init__(self, db, models):
@@ -29,19 +30,14 @@ class WebCatPipeline():
         logging.info(f"Keeping cached pipeline.")
         return True
 
-    def fetch_templates(self, version=2):
+    def fetch_templates(self):
         templates = []
-        if version == 1:
-            templates = self.db.session.query(Template).all()
-        
-        if version == 2:
-            templates = self.db.session.query(Template_v2).all()
-
+        templates = self.db.session.query(Template).all()
         templates = [template.json_serialize() for template in templates]
         return templates
     
     def initialize_parser(self):
-        templates = self.fetch_templates(version=2)
+        templates = self.fetch_templates()
         self.parser = WebCatParser(templates)
 
     def load_categories(self, labels):
@@ -61,16 +57,24 @@ class WebCatPipeline():
         self.labels_to_ids = labels_to_ids
         self.ids_to_labels = {v: k for k, v in labels_to_ids.items()}
 
-    def load_entity_types(self):
+    def load_attribute_types(self):
+        attribute_types_to_ids = {}
+        attribute_types = self.db.session.query(AttributeType).all()
+        for attribute_type in attribute_types:
+            attribute_types_to_ids[attribute_type.tag] = attribute_type.id
+        self.attribute_types_to_ids = attribute_types_to_ids
+        self.attribute_ids_to_types = {v: k for k, v in attribute_types_to_ids.items()}
+
+    def load_named_entity_types(self):
         types_supported = self.analyzer.ner_model.get_entity_types()
         types_to_ids = {}
         # try to retrieve ids from the database, if some labels are not found, create them
         # also create a mapping from labels to ids
         entity_types = []
         for type in types_supported:
-            entity_type = self.db.session.query(EntityType).filter(EntityType.name == type).first()
+            entity_type = self.db.session.query(NamedEntityType).filter(NamedEntityType.name == type).first()
             if not entity_type:
-                entity_type = EntityType(name=type, tag=None)
+                entity_type = NamedEntityType(name=type, tag=None)
                 self.db.session.add(entity_type)
                 self.db.session.commit()
             entity_types.append(entity_type)
@@ -95,7 +99,7 @@ class WebCatPipeline():
         # filter any hashes that are already in the database
         if kwargs.get("save", True):
             hashes = [content['hash'] for content in contents]
-            hashes_in_db = self.db.session.query(Content_v2.hash).filter(Content_v2.hash.in_(hashes)).all()
+            hashes_in_db = self.db.session.query(Content.hash).filter(Content.hash.in_(hashes)).all()
             hashes_in_db = [hash[0] for hash in hashes_in_db]
             contents_tmp = [content for content in contents if content['hash'] not in hashes_in_db]
         else:
@@ -107,6 +111,7 @@ class WebCatPipeline():
             "duplicate": len(contents) - len(contents_tmp),
         }
         # remove any duplicities within the same contents
+        # TODO: Isn't this useless?
         hash_index = {}
         contents_filtered = []
         for i, content in enumerate(contents_tmp):
@@ -115,51 +120,55 @@ class WebCatPipeline():
                 contents_filtered.append(content)
 
         logging.warn(f"Filtered {filter_stats['duplicate']} duplicate hashes out of {filter_stats['total']} total hashes")
-        # create a message: index mapping
-        messages = []
+        # create a attribute: index mapping
+        attributes = []
         for i, content in enumerate(contents_filtered):
-            for message in content['message']:
-                messages.append({
-                    "message": message,
-                    "content_row": i,
-                    "hash": content['hash'],
-                    "file_path": content['file_path']
-                })
+            for j, attribute in enumerate(content['attributes']):
+                    attributes.append({
+                        "content_index": i,
+                        "attribute_index": j,
+                        "type": attribute['type'],
+                        "content": attribute['content'],
+                        "hash": content['hash'],
+                        "file_path": content['file_path']
+                    })
 
         logging.warn(f"Constructing dataset from {len(contents_filtered)} content chunks...")
-        dataset = datasets.Dataset.from_list([{ "text": message['message'], "content_row": message['content_row'], "hash": message['hash'], "file_path": message['file_path']} for message in messages])
+        dataset = datasets.Dataset.from_list([{ "text": attribute['content'], "content_index": attribute['content_index'], "attribute_index": attribute['attribute_index'], "hash": attribute['hash'], "file_path": attribute['file_path']} for attribute in attributes if attribute['type'] == 'post-message'])
     
         processed_objects = []
         stats = {
             "total_contents": len(contents),
-            "total_messages": len(messages),
+            "total_attributes": len(attributes),
             "processed_messages": 0,
             "processed_contents": 0,
             "duplicate_content": len(contents) - len(contents_filtered),
             "error": 0
         }
 
-        # add the categories and entities to the filtered contents andd initialize with []
         for content in contents_filtered:
-            content['categories'] = []
-            content['entities'] = []
-
+            for attribute in content['attributes']:
+                attribute['categories'] = None
+                attribute['entities'] = []
 
         # process entire file
         try:
-            logging.info(f"Processing {len(messages)} messages...")
-            if len(messages) == 0:
+            logging.info(f"Processing {len(dataset)} messages...")
+            if len(dataset) == 0:
                 return [], stats
             
-            rows = dataset['content_row']
+            content_indices = dataset['content_index']
+            attribute_indices = dataset['attribute_index']
+
             categories, entities, texts = self.analyzer.analyze_dataset(dataset, **kwargs)
 
             if not categories or not entities:
                 return [], stats
             
             for i, (category, entity) in enumerate(zip(categories, entities)):
-                contents_filtered[rows[i]]['categories'].append(category)
-                contents_filtered[rows[i]]['entities'].append([{'name': e[0], 'type': {'name': e[1]}} for e in entity])
+                contents_filtered[content_indices[i]]['attributes'][attribute_indices[i]]['categories'] = category
+                contents_filtered[content_indices[i]]['attributes'][attribute_indices[i]]['entities'] = [{'name': e[0], 'type': {'name': e[1]}} for e in entity]
+
                 stats["processed_messages"] += 1
 
             for i, content in enumerate(contents_filtered):
@@ -180,13 +189,14 @@ class WebCatPipeline():
         labels = kwargs["labels"] if "labels" in kwargs else None
         self.initialize_parser()
         self.load_categories(labels)
-        self.load_entity_types()
+        self.load_named_entity_types()
+        self.load_attribute_types()
         files_contents = self.parser.parse_files(files_path)
 
         analyzed_objects = []
         stats_all = {
             "total_contents": 0,
-            "total_messages": 0,
+            "total_attributes": 0,
             "processed_messages": 0,
             "processed_contents": 0,
             "duplicate_content": 0,
@@ -219,7 +229,8 @@ class WebCatPipeline():
     def process_raw_text(self, text, **kwargs):
         labels = kwargs["labels"] if "labels" in kwargs else None
         self.load_categories(labels)
-        self.load_entity_types()
+        self.load_named_entity_types()
+        self.load_attribute_types()
         text = self.parser.parse_raw_text(text)
         categories, entities, text = self.analyzer.analyze_content([text], **kwargs)
         print(categories)
@@ -248,23 +259,28 @@ class WebCatPipeline():
             for content in contents:
                 try:
                     # create new content entry in the database
-                    db_content = Content_v2(content['hash'], content['author'], content['header'])
+                    db_content = Content(content['hash'])
+                    attributes = content['attributes'] if 'attributes' in content else []
                     db_content.file = file
-                    messages = []
-                    for cats, ents, text in zip(content['categories'], content['entities'], content['message']):
-                        message = Message_v2(text)
-                        self.db.session.add(message)
+                    db_attributes = []
+                    for attribute in attributes:
+                        # type_id, content, tag
+                        db_attribute = Attribute(self.attribute_types_to_ids[attribute['type']], attribute['content'], attribute['tag'])
+                        self.db.session.add(db_attribute)
                         self.db.session.flush()
-                        message.categories = [MessageCategory_v2(message.id, self.labels_to_ids[label], conf) for label, conf in cats.items()]
+                        if attribute['type'] == 'post-message' and attribute['categories'] != None:
+                            db_attribute.categories = [AttributeCategory(db_attribute.id, self.labels_to_ids[label], conf) for label, conf in attribute['categories'].items()]
+                        
+                        ents = attribute['entities'] if 'entities' in attribute else []
                         ents = [ent for ent in ents if ent['type']['name'] in self.types_to_ids and ent['name'] != '' and ent['name'] != ' ']
                         named_entities = [NamedEntity(entity['name'], self.types_to_ids[entity['type']['name']]) for entity in ents]
-                        message.entities = named_entities
+                        db_attribute.entities = named_entities
                         self.db.session.add_all(named_entities)
                         self.db.session.flush()
-                        # message.entities = [MessageEntity_v2(message.id, entity.id) for entity in named_entities]
-                        messages.append(message)
-                    db_content.messages = messages
-                
+                        db_attributes.append(db_attribute)
+
+                    db_content.attributes = db_attributes
+
                 except Exception as e:
                     self.db.session.rollback()
                     logging.error(f"Error while saving content to database: {e}")
@@ -291,21 +307,25 @@ class WebCatPipeline():
             for content in contents:
                 try:
                     # create new content entry in the database
-                    db_content = Content_v2(content['hash'], content['author'], content['header'])
+                    db_content = Content(content['hash'])
+                    attributes = content['attributes'] if 'attributes' in content else []
                     db_content.file = file
-                    messages = []
-                    for cats, ents, text in zip(content['categories'], content['entities'], content['message']):
-                        message = Message_v2(text)
-                        message.categories = [MessageCategory_v2(0, self.labels_to_ids[label], conf) for label, conf in cats.items()]
-                        for mes_cat in message.categories:
-                            mes_cat.category = Category(self.ids_to_labels[mes_cat.category_id])
+                    db_attributes = []
+                    for attribute in attributes:
+                        db_attribute = Attribute(self.attribute_types_to_ids[attribute['type']], attribute['content'], attribute['tag'])
+                        if attribute['type'] == 'post-message' and attribute['categories'] != None:
+                            db_attribute.categories = [AttributeCategory(0, self.labels_to_ids[label], conf) for label, conf in attribute['categories'].items()]
+                            for attribute_category in db_attribute.categories:
+                                attribute_category.category = Category(self.ids_to_labels[attribute_category.category_id])
+                        
+                        ents = attribute['entities'] if 'entities' in attribute else []
                         ents = [ent for ent in ents if ent['type']['name'] in self.types_to_ids and ent['name'] != '' and ent['name'] != ' ']
                         named_entities = [NamedEntity(entity['name'], self.types_to_ids[entity['type']['name']]) for entity in ents]
                         for named_entity in named_entities:
-                            named_entity.type = EntityType(self.ids_to_types[named_entity.type_id], '')
-                        message.entities = named_entities
-                        messages.append(message)
-                    db_content.messages = messages
+                            named_entity.type = NamedEntityType(self.ids_to_types[named_entity.type_id], '')
+                        db_attribute.entities = named_entities
+                        db_attributes.append(db_attribute)
+                    db_content.attributes = db_attributes
                 
                 except Exception as e:
                     logging.error(f"Error while fake saving content to database: {e}")

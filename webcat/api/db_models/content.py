@@ -1,30 +1,25 @@
 from database import db
 
-# create SQLAlchemy models
 class Content(db.Model):
     __tablename__ = 'contents'
     id = db.Column(db.Integer, primary_key=True)
-    file_id = db.Column(db.Integer, db.ForeignKey('files.id'))
-    text = db.Column(db.String(10000))
+    attributes = db.relationship('Attribute', secondary='content_attributes', backref=db.backref('contents', lazy=True))
     hash = db.Column(db.String(32), unique=True)
-    entities = db.relationship('NamedEntity', lazy=True, secondary='content_entities', cascade="all, delete-orphan", single_parent=True)
-    categories = db.relationship('ContentCategory', lazy=True, cascade="all, delete-orphan", single_parent=True)
+    file_id = db.Column(db.Integer, db.ForeignKey('files.id'))
+    file = db.relationship('File', backref=db.backref('contents', lazy=True))
     
-    def __init__(self, file_id: int, text: str, hash: str = None):
-        self.file_id = file_id
-        self.text = text
+    def __init__(self, hash: str):
         self.hash = hash
 
     def __repr__(self):
-        return f"Content(id={self.id}, file_id={self.file_id}, text={self.text}, categories={self.categories}, entities={self.entities})"
+        return f"Content(id={self.id}, file={self.file}, hash={self.hash})"
 
     def json_serialize(self):
         return {
             'id': self.id,
-            'file_id': self.file_id,
-            'text': self.text,
-            'categories': [c.json_serialize() for c in self.categories],
-            'entities': [e.json_serialize() for e in self.entities]
+            'file': self.file.json_serialize(),
+            'attributes': [attribute.json_serialize() for attribute in self.attributes],
+            'hash': self.hash,
         }
 
 

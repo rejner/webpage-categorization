@@ -5,7 +5,6 @@ class File(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200))
     path = db.Column(db.Text)
-    contents = db.relationship('Content', backref='files', lazy=True, cascade="all")
 
     def __init__(self, name: str, path: str):
         self.name = name

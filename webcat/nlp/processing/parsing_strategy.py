@@ -550,10 +550,27 @@ class TemplatesStrategy_v2(ParsingStrategy):
             hsh = hashlib.md5(MD_text.encode('utf-8')).hexdigest()
             # TODO: author and header swapped, this seem to be rooted in the templates
             # For now, it is ok, but it should be fixed
+            message_attributes = [{
+                "type": "post-message",
+                "content": text,
+                "tag": i
+            } for i, text in enumerate(m_text)]
+            author_attribute = {
+                "type": "post-author",
+                "content": h_text,
+                "tag": 0
+            }
+            title_attribute = {
+                "type": "post-title",
+                "content": a_text,
+                "tag": 0
+            }
             content_objects.append({
-                "message": m_text,
-                "author": h_text,
-                "header": a_text,
+                "attributes": [
+                    author_attribute,
+                    title_attribute,
+                    *message_attributes
+                ],
                 "hash": hsh,
             })
 

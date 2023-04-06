@@ -88,7 +88,7 @@ class WebCatDataProvider(Resource):
     def get(self):
         categories = db.session.query(Category.name).all()
         categories = [c[0] for c in categories]
-        entity_types = db.session.query(EntityType.name).all()
+        entity_types = db.session.query(NamedEntityType.name).all()
         entity_types = [e[0] for e in entity_types]
         return {'categories': categories, 'entity_types': entity_types}
 

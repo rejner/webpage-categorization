@@ -16,7 +16,7 @@ class WebCatTemplates(Resource):
             self.element_types = self.fetch_element_types()
 
     def fetch_element_types(self):
-        element_types = db.session.query(ElementType_v2).all()
+        element_types = db.session.query(ElementType).all()
         return element_types
 
     def create_default_element_types(self):
@@ -25,7 +25,7 @@ class WebCatTemplates(Resource):
         """
         element_types = ['post-message', 'post-author', 'post-header']
         for element_type in element_types:
-            new_element_type = ElementType_v2(element_type)
+            new_element_type = ElementType(element_type)
             db.session.add(new_element_type)
         db.session.commit()
 
@@ -36,15 +36,9 @@ class WebCatTemplates(Resource):
         if 'version' not in data:
             return {'error': "No version specified"}, 400
         
-        if version == 1:
-            templates = db.session.query(Template).all()
-            templates = [template.json_serialize() for template in templates]
-            res = json.dumps(templates)
-        
-        if version == 2:
-            templates = db.session.query(Template_v2).all()
-            templates = [template.json_serialize() for template in templates]
-            res = json.dumps(templates)
+        templates = db.session.query(Template).all()
+        templates = [template.json_serialize() for template in templates]
+        res = json.dumps(templates)
 
         return res, 200
 
@@ -64,23 +58,12 @@ class WebCatTemplates(Resource):
             return self.get_engine()
         
         return {'error': "No such service"}, 400
-        
-    def create_template_v1(self, data):
+    
+    def create_template(self, data):
         newTemplate = Template(data['creation_date'], data['origin_file'])
         newElements = []
         for element in data['elements']:
-            newElements.append(Element(element['tag'], element['classes'], element['id_attr'], element['type']))
-        newTemplate.elements = newElements
-
-        db.session.add(newTemplate)
-        db.session.commit()
-        return {'id': newTemplate.id}, 200
-    
-    def create_template_v2(self, data):
-        newTemplate = Template_v2(data['creation_date'], data['origin_file'])
-        newElements = []
-        for element in data['elements']:
-            newElements.append(Element_v2(element['tag'], self.element_type_to_id[element['type']], element['parent_tag'], element['grandparent_tag'], element['depth']))
+            newElements.append(Element(element['tag'], self.element_type_to_id[element['type']], element['parent_tag'], element['grandparent_tag'], element['depth']))
         newTemplate.elements = newElements
 
         db.session.add(newTemplate)
@@ -94,13 +77,8 @@ class WebCatTemplates(Resource):
             data = request.get_json()
             if not 'version' in data.keys():
                 return {'error': "No version specified"}, 400
-            
-            if data['version'] == 1:
-                return self.create_template_v1(data['template'])
-            if data['version'] == 2:
-                return self.create_template_v2(data['template'])
-            else:
-                return {'error': "No such version"}, 400
+        
+            return self.create_template(data['template'])
 
         except Exception as e:
             return {'error': str(e)}, 400
@@ -179,10 +157,8 @@ class WebCatTemplates(Resource):
         if id is None:
             return {'error': "No id provided"}, 400
         try:
-            if version == 1:
-                template = db.session.query(Template).get(id)
-            if version == 2:
-                template = db.session.query(Template_v2).get(id)
+
+            template = db.session.query(Template).get(id)
             db.session.delete(template)
             db.session.commit()
         except Exception as e:
