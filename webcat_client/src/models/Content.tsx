@@ -1,20 +1,12 @@
 
 
-export interface Content {
-    'categories': { [key: string]: number };
-    'entities': Entity[],
-    'text': string,
-    'file': string | undefined,
-    'id': number,
-}
-
-export interface Entity {
+export interface NamedEntity {
     'id': number,
     'name': string,
-    'type': EntityType,
+    'type': NamedEntityType,
 }
 
-export interface EntityType {
+export interface NamedEntityType {
     'id': number,
     'name': string,
     'tag': string | null,
@@ -30,37 +22,50 @@ export const entity_color_mapping: any = {
     "creative_work": 'bg-dark',
 }
 
-export interface File_v2 {
+export interface File {
     'id': number,
     'name': string,
     'path': string,
 }
 
-export interface Message_v2 {
+export interface Attribute {
     'id': number,
-    'text': string,
-    'categories': Category_v2[],
-    'entities': Entity[],
+    'content': string,
+    'tag': string,
+    'type': AttributeType,
+    'type_id': number,
+    'categories': Category[],
+    'entities': NamedEntity[],
 }
 
-export interface Category_v2 {
+export interface AttributeType {
+    'id': number,
+    'name': string,
+    'tag': string,
+}
+
+export interface Category {
     'id': number,
     'message_id': number,
     'category_id': number,
-    'confidence': number,
+    'score': number,
     'category': {
         'id': number,
         'name': string,
     }
 }
 
-export interface Content_v2 {
+export interface Content {
     'id': number,
-    'file': File_v2,
+    'file': File,
     'hash': string,
-    'header': string,
-    'author': string,
-    'messages': Message_v2[],
-    'merged_text': string,
-    'merged_categories': { [key: string]: number },
+    'attributes': Attribute[],
+    // 'merged_text': string,
+    // 'merged_categories': { [key: string]: number },
+}
+
+export interface InteractiveContent {
+    'text': string,
+    'entities': NamedEntity[],
+    'categories': Category[],
 }

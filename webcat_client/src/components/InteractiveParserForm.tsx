@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stack, Container, Button, Form, Row, Col, Card, Spinner } from 'react-bootstrap';
 import { AppContext } from '../index';
-import { Content, entity_color_mapping } from '../models/Content';
+import { InteractiveContent, entity_color_mapping } from '../models/Content';
 import { ModelSpecs } from './FilesParserForm';
 
 
@@ -71,7 +71,7 @@ function InteractiveParserForm() {
             if (data.error) {
                 alert(data.error)
             } else {
-                let content: Content = data;
+                let content: InteractiveContent = data;
                 let entities: any = content.entities;
                 for (let entity of entities) {
                     // replace entity with <span> tag

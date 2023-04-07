@@ -2,12 +2,12 @@
 // User can move with mouse and click on elements to get their css selectors.
 
 import React, { useState, useEffect } from 'react';
-import { Container, Button, Form, Row, Col, Spinner } from 'react-bootstrap';
+import { Container, Button, Form, Row, Col, Spinner, Stack } from 'react-bootstrap';
 import { useFilePicker } from 'use-file-picker';
 import { RenderElement } from './RenderElement';
 import { AppContext } from '..';
-import { Template, Template_v2 } from '../models/Template';
-import { Element, Element_v2 } from '../models/Element';
+import { Template } from '../models/Template';
+import { Element } from '../models/Element';
 
 
 export const colorToSectionMapping: {[key: string]: string} = {
@@ -38,8 +38,8 @@ export const ControlsContext = React.createContext<ControlsContextInterface>({
 interface TemplatesContextInterface {
     createTemplate: boolean,
     setCreateTemplate: React.Dispatch<React.SetStateAction<boolean>>,
-    elements: Element_v2[],
-    addElement: (template: Element_v2) => void,
+    elements: Element[],
+    addElement: (template: Element) => void,
 }
 
 
@@ -48,7 +48,7 @@ export const TemplatesContext = React.createContext<TemplatesContextInterface>({
     createTemplate: false,
     setCreateTemplate: () => {},
     elements: [],
-    addElement: (template: Element_v2) => {
+    addElement: (template: Element) => {
         
     }
 });
@@ -66,10 +66,10 @@ function Templater() {
     const [selectedLabel, setSelectedLabel] = useState<string>("warning");
     const [unrollAll, setUnrollAll] =  useState<boolean>(false);
     const [createTemplate, setCreateTemplate] = useState<boolean>(false);
-    const [elements, setElements] = useState<Element_v2[]>([]);
-    const [template, setTemplate] = useState<Template_v2>();
+    const [elements, setElements] = useState<Element[]>([]);
+    const [template, setTemplate] = useState<Template>();
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
-    const addElementToTemplate = (element: Element_v2) => {
+    const addElementToTemplate = (element: Element) => {
         console.log("adding template -- top of function");
         console.log(elements);
         elements.push(element);
@@ -107,12 +107,75 @@ function Templater() {
     }
     }, [elements]);
 
+    function sendTemplate() {
+        console.log("Sending template to server");
+        console.log(template);
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/manager`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(
+                {
+                    template: template,
+                    version: 2,
+                }
+            )
+        }).then(response => {
+            console.log(response);
+            if (response.status === 200) {
+                console.log("Template sent successfully");
+                alert("Template saved successfully!");
+            }
+        }).catch(error => {
+            console.log(error);
+            alert("Error while saving template!");
+        });
+    }
 
       return (
         <TemplatesContext.Provider value={{createTemplate, setCreateTemplate, elements, addElement: addElementToTemplate}}>
             <ControlsContext.Provider value={{selectedLabel, setSelectedLabel, unrollAll, setUnrollAll}}>
                 <h3 className='mt-3 text-light'>Template Maker</h3>
                 <Button onClick={openFileSelector} className="mt-3 w-25">Select File</Button>
+                <Stack className="mt-3" direction="horizontal" gap={3}>
+                {doc && 
+                    <Button onClick={() => {setCreateTemplate(true);
+                    // set timeout to wait for elements to be added and re-rendered
+                    setTimeout(() => {
+                        console.log("Templates:" + elements);
+                        const newElements = [...elements];
+                        setElements(newElements);
+                        let newTemplate: Template = {
+                            'id': 0,
+                            'creation_date': new Date().toISOString(),
+                            'origin_file': plainFiles[0].name,
+                            'elements': elements
+                        };
+                        setTemplate(newTemplate);
+                        setCreateTemplate(false);
+                    }, 1000);
+                    
+                    }} className="mt-3 w-25">
+                        { createTemplate ? <Spinner animation="border" size="sm" /> : <span>Create Template</span> }
+                    </Button>
+                    }
+                    {/* Add separator 20px width */}
+                    {
+                        doc && !createTemplate &&
+                        <>
+                            <Button variant='danger' onClick={() => {setCreateTemplate(false); setElements([]); setTemplate(undefined)}} className="mt-3 w-25">Clear Templates</Button>
+                        </>
+                    }
+                    
+                    
+                    {/*  Send to server button */}
+                    { elements.length > 1 &&
+                        <Button variant='success' className="mt-3 w-25" onClick={() => sendTemplate()}>
+                            {!createTemplate && <span>Save Templates</span>}
+                        </Button>
+                    }
+                </Stack>
                     
                 {/* Create 5 labels which can be selected (they behave like checkbox) in primary, warning etc. colors. */}
 
@@ -148,77 +211,7 @@ function Templater() {
                     </Container>
                 }
                 </Container>
-                
-                <Row className="mt-3">
-                {doc && !createTemplate && 
-                    <Button onClick={() => {setCreateTemplate(true);
-                    // set timeout to wait for elements to be added and re-rendered
-                    setTimeout(() => {
-                        console.log("Templates:" + elements);
-                        const newElements = [...elements];
-                        setElements(newElements);
-                        let newTemplate: Template_v2 = {
-                            'id': 0,
-                            'creation_date': new Date().toISOString(),
-                            'origin_file': plainFiles[0].name,
-                            'elements': elements
-                        };
-                        setTemplate(newTemplate);
-                        setCreateTemplate(false);
-                    }, 1000);
-                    
-                    }} className="mt-3 w-25">
-                        {/* Spinning circle when createTemplate == true */}
-                        {createTemplate && <Spinner animation="border" size="sm" />}
-                        <span>Create Template</span>
-                        </Button>
-                    }
-                    {/* Add separator 20px width */}
-                    {
-                        doc && !createTemplate &&
-                        <>
-                            <div style={{width: "20px"}}></div>
-                            <Button variant='danger' onClick={() => {setDoc(undefined); setCreateTemplate(false); setElements([]); setTemplate(undefined)}} className="mt-3 w-25">Clear Templates</Button>
-                            <div style={{width: "20px"}}></div>
-                        </>
-                    }
-                    
-                    
-                    {/*  Send to server button */}
-                    { elements.length > 1 &&
-                        <Button variant='success' className="mt-3 w-25" onClick={() => {
-                            console.log("Sending elements to server");
-                            console.log(elements);
-         
 
-                            fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/manager`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(
-                                    {
-                                        template: template,
-                                        version: 2,
-                                    }
-                                )
-                            })
-                            .then(response => 
-                                response.json()
-                            )
-                            .then(data => {
-                                console.log('Success:', data);
-                            })
-                            .catch((error) => {
-                                console.error('Error:', error);
-                            });
-                            }} >
-                            {/* Spinning circle when createTemplate == true */}
-                            {createTemplate && <Spinner animation="border" size="sm" />}
-                            {!createTemplate && <span>Save Templates</span>}
-                        </Button>
-                    }
-                </Row>
 
                 {/* Display content of template is not empty */}
                 <Container className="bg-none text-light mt-1 mb-5 h-25 overflow-auto border-bottom border-dark">

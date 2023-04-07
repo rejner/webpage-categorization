@@ -2,14 +2,13 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Container, Button, Form, Row, Col, Spinner, Table } from 'react-bootstrap';
 import { AppContext } from '..';
 import { colorToSectionMapping } from './Templater';
-import { Template, Template_v2 } from '../models/Template';
+import { Template } from '../models/Template';
 import { Element } from '../models/Element';
 
 
 function TemplateManager() {
 
     const [templates, setTemplates] = useState<Template[]>();
-    const [templates_v2, setTemplates_v2] = useState<Template_v2[]>([]);
     const [isLoading, setLoading] = useState(false);
     const {server_ip, server_port, server_api} = useContext(AppContext);
     
@@ -20,10 +19,7 @@ function TemplateManager() {
         ).then(response => response.json())
         .then(data => {
                 console.log(JSON.parse(data));
-                if (version == 1)
-                    setTemplates(JSON.parse(data));
-                else
-                    setTemplates_v2(JSON.parse(data));
+                setTemplates(JSON.parse(data));
                 setLoading(false);
             });
     }
@@ -66,41 +62,6 @@ function TemplateManager() {
             <tbody>
                 { templates &&
                     templates.map((template: Template, index) => {
-                        return (
-                            <tr key={index}>
-                                <td>
-                                    <ul>
-                                        <li>Id: {template.id}</li>
-                                        <li>File: {template.origin_file}</li>
-                                        <li>Creation Date: {template.creation_date}</li>
-                                        <li>Version: 1</li>
-                                    </ul>
-
-                                </td>
-                                <td>
-                                    {
-                                        template.elements.map((element, index) => {
-                                            return (
-                                                <ul key={index}>
-                                                    <li>Type: {element.type}</li>
-                                                    <li>Tag: {element.tag}</li>
-                                                    <li>Id: {element.id_attr}</li>
-                                                    <li>Classes: {element.classes.join(', ')}</li>
-                                                </ul>
-                                            );
-                                        })
-                                    }
-                                </td>
-                                <td>
-                                    <Button variant='danger' onClick={() => deleteTemplate(template.id, 1)}>Delete</Button>
-                                </td>
-                            </tr>
-                        );
-                    })
-                }
-
-                { templates_v2 &&
-                    templates_v2.map((template: Template_v2, index) => {
                         return (
                             <tr key={index}>
                                 <td>

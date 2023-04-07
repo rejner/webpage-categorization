@@ -71,7 +71,7 @@ class ParsingStrategy(object):
             if current_word_count + num_words > 256:
                 # if adding the current sentence will exceed the 256-word limit,
                 # add the current block to the list of blocks and start a new block
-                blocks.append(current_block.strip())
+                blocks.append(" " + current_block.strip() + " ")
                 current_block = ""
                 current_word_count = 0
 
@@ -80,7 +80,7 @@ class ParsingStrategy(object):
 
         # add the last block to the list of blocks
         if current_block.strip() != "":
-            blocks.append(current_block.strip())
+            blocks.append(" " + current_block.strip())
 
         return blocks
 
@@ -477,21 +477,7 @@ class TemplatesStrategy_v2(ParsingStrategy):
         
         return segments
 
-    # def clear_text(self, text):
-    #     """
-    #         Removes all the newlines from the text.
-    #     """
-    #     # Remove all the newlines
-    #     text = text.replace("\n", " ")
-    #     # Remove all the tabs
-    #     text = text.replace("\t", " ")
-    #     # Remove all the multiple spaces
-    #     text = re.sub(" +", " ", text)
-    #     # Remove all the leading and trailing spaces
-    #     text = text.strip()
-    #     return text
-    
-    def clear_text(self, text):
+    def clear_text(self, text, remove_urls=True, remove_emails=True):
         text = text.replace("\n", " ")
         # Remove all the tabs
         text = text.replace("\t", " ")
@@ -501,10 +487,12 @@ class TemplatesStrategy_v2(ParsingStrategy):
         text = text.strip()
         # remove urls
         # urls = re.findall(url_pattern, text)
-        text = re.sub(url_pattern, ' {{URL}} ', text)
+        if remove_urls:
+            text = re.sub(url_pattern, ' {{URL}} ', text)
         # remove emails
         # emails = re.findall(email_pattern, text)
-        text = re.sub(email_pattern, " {{EMAIL}} ", text)
+        if remove_emails:
+            text = re.sub(email_pattern, " {{EMAIL}} ", text)
         # remove html tags
         text = re.sub(r'<[^>]*>', '', text)
         return text
@@ -533,10 +521,11 @@ class TemplatesStrategy_v2(ParsingStrategy):
 
         for m_el, a_el, h_el in zip(message_elements, author_elements, header_elements):
             # messages can be split because they contain too much text
-            m_text = self.process_text(m_el.text)
+            strings = [s for s in m_el.strings if s.strip() != '']
+            m_text = self.process_text(" ".join(strings).strip())
             # only clear authors and headers, because they will not be analyzed by the model
-            a_text = self.clear_text(a_el.text)
-            h_text = self.clear_text(h_el.text)
+            a_text = self.clear_text(a_el.text, remove_urls=False, remove_emails=False)
+            h_text = self.clear_text(h_el.text, remove_urls=False, remove_emails=False)
       
             MD_text = ""
             MD_text += "## " + h_text + "\n"

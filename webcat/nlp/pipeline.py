@@ -63,6 +63,7 @@ class WebCatPipeline():
         for attribute_type in attribute_types:
             attribute_types_to_ids[attribute_type.tag] = attribute_type.id
         self.attribute_types_to_ids = attribute_types_to_ids
+        self.attribute_tag_to_name = {attribute_type.tag: attribute_type.name for attribute_type in attribute_types}
         self.attribute_ids_to_types = {v: k for k, v in attribute_types_to_ids.items()}
 
     def load_named_entity_types(self):
@@ -313,6 +314,7 @@ class WebCatPipeline():
                     db_attributes = []
                     for attribute in attributes:
                         db_attribute = Attribute(self.attribute_types_to_ids[attribute['type']], attribute['content'], attribute['tag'])
+                        db_attribute.type = AttributeType(self.attribute_tag_to_name[attribute['type']], attribute['type'])
                         if attribute['type'] == 'post-message' and attribute['categories'] != None:
                             db_attribute.categories = [AttributeCategory(0, self.labels_to_ids[label], conf) for label, conf in attribute['categories'].items()]
                             for attribute_category in db_attribute.categories:

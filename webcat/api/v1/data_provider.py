@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse, request
 from database import db
 from models_extension import *
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 import time
 from sqlalchemy.orm import contains_eager
 
@@ -47,39 +47,47 @@ class WebCatDataProvider(Resource):
             authors = [a for a in authors if a != '']
         
         # build the query
-        query = db.session.query(Content_v2)
-        query = query.join(ContentMessage_v2).join(Message_v2).join(MessageCategory_v2, Message_v2.id == MessageCategory_v2.message_id).join(Category, MessageCategory_v2.category_id == Category.id)
+        query = db.session.query(Content)
+        query = query.join(ContentAttribute, Content.id == ContentAttribute.content_id)
+        query = query.join(Attribute, ContentAttribute.attribute_id == Attribute.id)
+        query = query.join(AttributeType, Attribute.type_id == AttributeType.id)
+        
+        category_query = query
         # apply filters for categories and entities
         if categories:
             if 'all' not in categories:
                 # filter by categories
-                category_query = query.filter(Category.name.in_(categories))
                 if cat_threshold > 0:
-                    category_query = category_query.filter(MessageCategory_v2.confidence >= cat_threshold)
-                query = query.intersect(category_query)
+                    category_query = query.join(AttributeCategory, Attribute.id == AttributeCategory.attribute_id, isouter=True)
+                    category_query = category_query.join(Category, AttributeCategory.category_id == Category.id, isouter=True)
+                    category_query = category_query.filter(Category.name.in_(categories))
+                    category_query = category_query.filter(AttributeCategory.score >= cat_threshold)
 
+        entity_query = query
         if entity_types:
             if 'all' not in entity_types:
-                # filter by entity types
-                entity_query = query.join(ContentMessage_v2).join(Message_v2, Message_v2.id == ContentMessage_v2.message_id).join(MessageEntity_v2, MessageEntity_v2.message_id == Message_v2.id).join(NamedEntity, NamedEntity.id == MessageEntity_v2.entity_id).join(EntityType, EntityType.id == NamedEntity.type_id).filter(EntityType.name.in_(entity_types))
-                query = query.intersect(entity_query)
+                entity_query = query.join(AttributeEntity, AttributeEntity.attribute_id == Attribute.id)
+                entity_query = entity_query.join(NamedEntity, NamedEntity.id == AttributeEntity.entity_id)
+                entity_query = entity_query.join(NamedEntityType, NamedEntityType.id == NamedEntity.type_id)
+                entity_query = entity_query.filter(NamedEntityType.name.in_(entity_types))
         
+        file_query = query
         # filter enties on required paths
         if file_paths:
-            # filter by file paths, file path can be in format */path/to/file or */middle/path/*
-            # Build a list of like conditions for each file path in file_paths
             like_conditions = [File.path.like(fpath.replace('*', '%')) for fpath in file_paths]
-            # Join the like conditions together with the or_ operator
-            file_query = query.join(File, File.id == Content_v2.file_id).filter(or_(*like_conditions))
-            # Intersect the query with the file_query to get the final result
-            query = query.intersect(file_query)
+            file_query = query.join(File, File.id == Content.file_id).filter(or_(*like_conditions))
 
+        author_query = query
         if authors:
-            # filter by authors
-            like_conditions = [Content_v2.author.like("%" + author + "%") for author in authors]
-            author_query = query.filter(or_(*like_conditions))
-            query = query.intersect(author_query)
-            
+            like_conditions = [Attribute.content.like("%" + author + "%") for author in authors]
+            author_query = query.filter(AttributeType.tag == 'post-author')
+            author_query = author_query.filter(or_(*like_conditions))
+        
+        # Intersect the query with the category_query, entity_query, file_query, and author_query to get the final result
+        query = query.intersect(category_query)
+        query = query.intersect(entity_query)
+        query = query.intersect(file_query)
+        query = query.intersect(author_query)
 
         # execute the query and return the results
         return query.all()

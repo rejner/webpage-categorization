@@ -5,8 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { Container, Button, Form, Row, Col, Spinner, Stack } from 'react-bootstrap';
 import { useFilePicker } from 'use-file-picker';
 import { AppContext } from '..';
-import { Template_v2 } from '../models/Template';
-import { Element_v2 } from '../models/Element';
+import { Template } from '../models/Template';
+import { Element } from '../models/Element';
 
 
 interface ModelSpecs {
@@ -15,23 +15,9 @@ interface ModelSpecs {
     description?: string;
 }
 
-interface TemplateElement {
-    tag: string,
-    parent_tag: string,
-    grandparent_tag: string,
-    depth: number,
-}
-
-// signature with a parameter of type 'string'
-interface Template {
-    "post-author": TemplateElement,
-    "post-message": TemplateElement,
-    "post-header": TemplateElement,
-}
-
 interface TemplateProposal {
     perfect_match: boolean,
-    elements: Element_v2[],
+    elements: Element[],
     contents: {
         'post-author': string[],
         'post-message': string[],
@@ -123,7 +109,7 @@ function TemplaterAuto() {
             alert('Please parse a file first');
             return;
         }
-        let template: Template_v2 = {
+        let template: Template = {
             id: 0,
             creation_date: new Date().toISOString(),
             origin_file: filePath,
@@ -172,7 +158,7 @@ function TemplaterAuto() {
             <Form className="w-50">
                 <Form.Group controlId="formAutoParsing">
                     <Form.Label>Template Engine</Form.Label>
-                        <Form.Control className="w-100" as="select" onChange={(e) => setSelectedModel(availableModels.filter(model => model.name === e.target.value)[0])} >
+                        <Form.Control className="w-100" as="select" onChange={(e) => setSelectedModel(availableModels.filter(model => model.name === e.target.value)[0])} defaultValue={"Select Model"}>
                             {availableModels.map(model => <option key={model.name}>{model.name}</option>)}
                             <option key="default" disabled selected>Select a model</option>
                         </Form.Control>

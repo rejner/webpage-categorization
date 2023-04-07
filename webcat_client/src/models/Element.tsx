@@ -1,13 +1,6 @@
 
-export interface Element {
-    'id': number;
-    'tag': string;
-    'classes': string[];
-    'id_attr': string;
-    'type': string;
-}
 
-export interface Element_v2 {
+export interface Element {
     'id': number;
     'tag': string;
     'parent_tag': string;

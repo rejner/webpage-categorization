@@ -5,6 +5,7 @@ class Attribute(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     type_id = db.Column(db.Integer, db.ForeignKey('attribute_types.id'), nullable=False)
     content = db.Column(db.Text)
+    type = db.relationship('AttributeType', backref='attributes', lazy=True, cascade="all, delete-orphan", single_parent=True)
     tag = db.Column(db.String(100), nullable=True) # can contain additional information about the attribute, e.g. counter, etc.
     categories = db.relationship('AttributeCategory', backref='attributes', lazy=True, cascade="all, delete-orphan", single_parent=True)
     entities = db.relationship('NamedEntity', backref='attributes', secondary='attribute_entities', lazy=True, cascade="all, delete-orphan", single_parent=True)
@@ -24,5 +25,6 @@ class Attribute(db.Model):
             'content': self.content,
             'tag': self.tag,
             'categories': [c.json_serialize() for c in self.categories],
-            'entities': [e.json_serialize() for e in self.entities]
+            'entities': [e.json_serialize() for e in self.entities],
+            'type': self.type.json_serialize()
         }
