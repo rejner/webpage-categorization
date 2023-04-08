@@ -80,7 +80,7 @@ class WebCatDataProvider(Resource):
         author_query = query
         if authors:
             like_conditions = [Attribute.content.like("%" + author + "%") for author in authors]
-            author_query = query.filter(AttributeType.tag == 'post-author')
+            author_query = query.filter(AttributeType.tag.like("%" + "author" +"%"))
             author_query = author_query.filter(or_(*like_conditions))
         
         # Intersect the query with the category_query, entity_query, file_query, and author_query to get the final result

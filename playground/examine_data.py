@@ -22,3 +22,5 @@ def main(file_path):
 if __name__ == "__main__":
     FILE_PATH = "data/webpage__entity__contents.csv"
     main(FILE_PATH)
+
+    

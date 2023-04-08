@@ -23,6 +23,16 @@ export interface ModelSpecs {
     default: boolean;
 }
 
+interface Mapping {
+    content_identifier_column: string;
+    content_column: string;
+    path_column: string;
+    attribute_type_column: string;
+    attribute_types_to_keep: string[];
+    attribute_types_to_analyze: string[];
+}
+
+
 function FilesParserForm() {
     const [hypothesisTemplate, setHypothesisTemplate] = React.useState("The topic of this text is about {}.");
     const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cryptocurrency,delivery,weapons");
@@ -36,7 +46,16 @@ function FilesParserForm() {
     const [showModelSelection, setShowModelSelection] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [saveFiles, setSaveFiles] = React.useState(true);
-    // Read server_ip and server_port from the context
+    const [fileType, setFileType] = React.useState("html");
+    const [mapping, setMapping] = React.useState<Mapping>({
+        content_identifier_column: "",
+        content_column: "",
+        path_column: "",
+        attribute_type_column: "",
+        attribute_types_to_keep: [],
+        attribute_types_to_analyze: []
+    });
+    const [supportedFileTypes, setSupportedFileTypes] = React.useState([{name: "html", requireMapping: false}, {name: "csv", requireMapping: true}]);
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
     React.useEffect(() => {
@@ -66,6 +85,14 @@ function FilesParserForm() {
         event.preventDefault();
         console.log(`Hypothesis Template: ${hypothesisTemplate} Labels: ${labels} Path: ${path} Use Recursive: ${useRecursive}`);
         setIsSubmitting(true);
+        
+        if (mapping.attribute_types_to_keep.length > 0) {
+            mapping.attribute_types_to_keep = mapping.attribute_types_to_keep.map((type) => type.trim());
+        }
+
+        if (mapping.attribute_types_to_analyze.length > 0) {
+            mapping.attribute_types_to_analyze = mapping.attribute_types_to_analyze.map((type) => type.trim());
+        }
 
         // Construct the request body, which is a JSON object
         const requestBody = {
@@ -74,10 +101,12 @@ function FilesParserForm() {
             "path": path,
             "recursive": useRecursive,
             "save": saveFiles,
-            "models": JSON.stringify({
+            "models": {
                 "classification": classificationModel?.name,
                 "ner": nerModel?.name
-            })
+            },
+            "file_type": fileType,
+            "mapping": mapping
         };
 
         // Send the request to the server
@@ -87,7 +116,7 @@ function FilesParserForm() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
         })
         .then(response => response.json(), error => console.log("Error: " + error))
         .then(data => {
@@ -175,6 +204,57 @@ function FilesParserForm() {
                         <Form.Control type="string" placeholder="Enter labels separated by ',' symbol." value={labels} onChange={(e) => setLabels(e.target.value)}/>
                     </Form.Group>
 
+                    {/* selector for supported file types */}
+                    <Form.Group className="mb-3 w-25" controlId="formFileType">
+                        <Form.Label className='text-light'>File Type</Form.Label>
+                        <Form.Select aria-label="Default select example" value={fileType} onChange={(e) => setFileType(e.target.value)}>
+                            { supportedFileTypes.map((fileType, index) => {
+                                return <option key={index} value={fileType.name}>{fileType.name}</option>
+                            })}
+                        </Form.Select>
+                    </Form.Group>
+                    {/** Mapping for file types that require it (create one input for each attribute type)
+                     * {
+                            "content_identifier_column": "InstanceId",
+                            "content_column": "Content",
+                            "path_column": "UrlPath",
+                            "attribute_type_column": "AttributeTag",
+                            "attribute_types_to_keep": ["content", "author_name"],
+                            "attribute_types_to_analyze": ["content"] 
+                        }
+                     */}
+                    { supportedFileTypes.find((item) => item.name == fileType)?.requireMapping &&
+                        <Form.Group className="mb-3 w-50" controlId="formMapping">
+                            <Stack gap={1} direction="vertical">
+                                <Form.Label className='text-light'>Column/Attribute Mapping</Form.Label>
+                                <Form.Text className="text-muted">
+                                    Column name that contains the content identifier.
+                                </Form.Text>
+                                <Form.Control type="string" placeholder="content_identifier_column" value={mapping.content_identifier_column} onChange={(e) => setMapping({...mapping, content_identifier_column: e.target.value})}/>
+                                <Form.Text className="text-muted">
+                                    Column name that contains the textual content.
+                                </Form.Text>
+                                <Form.Control type="string" placeholder="content_column" value={mapping.content_column} onChange={(e) => setMapping({...mapping, content_column: e.target.value})}/>
+                                <Form.Text className="text-muted">
+                                    Column name that contains the attribute type (tag for authors, titles, messages etc.)
+                                </Form.Text>
+                                <Form.Control type="string" placeholder="attribute_type_column" value={mapping.attribute_type_column} onChange={(e) => setMapping({...mapping, attribute_type_column: e.target.value})}/>
+                                <Form.Text className="text-muted">
+                                    Attribute types to keep. These attributes will be included within the final Content object.
+                                </Form.Text>
+                                <Form.Control type="string" placeholder="attribute_types_to_keep" value={mapping.attribute_types_to_keep} onChange={(e) => setMapping({...mapping, attribute_types_to_keep: e.target.value.split(',')})}/>
+                                <Form.Text className="text-muted">
+                                    Attribute types to analyze. These attributes will be analyzed by the NLP models and will contain categories or named entities.
+                                </Form.Text>
+                                <Form.Control type="string" placeholder="attribute_types_to_analyze" value={mapping.attribute_types_to_analyze} onChange={(e) => setMapping({...mapping, attribute_types_to_analyze: e.target.value.split(',')})}/>
+                                <Form.Text className="text-muted">
+                                    Column name that contains the path to the original file or URL. (optional)
+                                </Form.Text>
+                                <Form.Control type="string" placeholder="path_column" value={mapping.path_column} onChange={(e) => setMapping({...mapping, path_column: e.target.value})}/>
+                            </Stack>
+                        </Form.Group>
+                    }
+
                     <Form.Group className="mb-3" controlId="formPaths">
                         <Form.Label className='text-light'>Path to Files</Form.Label>
                         <Form.Control type="string" placeholder="Enter path to files to be parsed or select files/directory."
@@ -212,7 +292,7 @@ function FilesParserForm() {
                     content &&
                     content.map((item, index) => {
                         return (
-                            <ContentElement key={index} content={item} />
+                            <ContentElement key={index} content={item}  />
                         );
                         }
                     )

@@ -42,6 +42,7 @@ export interface AttributeType {
     'id': number,
     'name': string,
     'tag': string,
+    'analyzed': boolean,
 }
 
 export interface Category {
