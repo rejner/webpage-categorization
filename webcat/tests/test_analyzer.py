@@ -2,7 +2,7 @@ import sys
 from os import path
 sys.path.append(path.dirname(__file__) + "/..")
 import unittest
-from nlp.processing.analyzer import WebCatAnalyzer
+from webcat.nlp.processing.analyzer.analyzer import WebCatAnalyzer
 from nlp.constants import dummy_corpus
 
 class TestAnalyzer(unittest.TestCase):

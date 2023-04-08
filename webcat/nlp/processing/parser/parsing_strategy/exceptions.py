@@ -1,5 +1,4 @@
 
-
 class NoParsableContentError(Exception):
     """
     Exception raised when no parsable content is found in a file.

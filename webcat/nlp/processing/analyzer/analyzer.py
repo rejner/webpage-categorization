@@ -1,12 +1,12 @@
 import sys
 from os import path
 sys.path.append(path.dirname(__file__) + "/..")
-from models.classification.joeddav_xlm_roberta import XLMRobertaLarge
-from models.classification.bart_large_mnli import BARTLarge
-from models.classification.DeBERTa_v3_base_mnli import DeBerta_v3_base_mnli
-from models.ner.tweetner7 import TweetNER7
+from .models.classification.joeddav_xlm_roberta import XLMRobertaLarge
+from .models.classification.bart_large_mnli import BARTLarge
+from .models.classification.DeBERTa_v3_base_mnli import DeBerta_v3_base_mnli
+from .models.ner.tweetner7 import TweetNER7
 import logging
-from models import list_all_models
+from .models import list_all_models
 
 '''
     Analyzer class definition.
@@ -62,7 +62,7 @@ class WebCatAnalyzer():
             logging.info("Finished analyzing dataset")
             return categories, entities, text
         except Exception as e:
-            print(e)
+            print(e.with_traceback(None))
             return None, None, None
         
     def classify(self, inputs, **kwargs):

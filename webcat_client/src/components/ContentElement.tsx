@@ -8,18 +8,21 @@ import { WebCatFilters } from './DataViewer';
 interface ContentElementProps {
     content: Content,
     filter?:  WebCatFilters,
+    // content_tags: string[],
     onDelete?: (id: number) => void, 
 }
-
-const LONG_TEXTUAL_CONTENT = ['post-message']
 
 export const ContentElement = (props: ContentElementProps) => {
     const [content, setContent] = React.useState<Content>();
     // long textual content might be split into multiple attributes
     const [mergedText, setMergedText] = React.useState('');
     const [mergedCategories, setMergedCategories] = React.useState<any>({});
+    // const [analysedContentTags, setAnalysedContentTags] = React.useState<string[]>([...props.content_tags]);
 
     useEffect(() => {
+        // if (props.content_tags !== undefined) {
+        //     setAnalysedContentTags([...analysedContentTags, ...props.content_tags]);
+        // }
         setContent(props.content);
     }, [props.content]);
 
@@ -40,7 +43,7 @@ export const ContentElement = (props: ContentElementProps) => {
                 a.content = insertNamedEntitiesIntoText(a.content, a.entities);
             }
             //console.log(a.categories);
-            if (LONG_TEXTUAL_CONTENT.includes(a.type.tag)) {
+            if (a.type.analyzed) {
                 merged_text += `[CHUNK #${a.tag}] ` + a.content + " ";
                 //console.log(a.categories);
                 for (let cat of a.categories) {
@@ -125,13 +128,13 @@ export const ContentElement = (props: ContentElementProps) => {
             {
             content!.attributes.map((item, index) => {
                 // skip long textual content if it is not the first chunk (all chunks are merged into one)
-                if (LONG_TEXTUAL_CONTENT.includes(item.type.tag) && item.tag != '0') {
+                if (item.type.analyzed && item.tag != '0') {
                     return;
                 }
                 return (
                     <Container className='text-light mb-3' key={index}>
                         <h3 className='mb-3'>{item.type.name}</h3>
-                        <div className='text-light mt-3' dangerouslySetInnerHTML={{__html: LONG_TEXTUAL_CONTENT.includes(item.type.tag) && item.tag == '0' ? mergedText : item.content}} />
+                        <div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.type.analyzed && item.tag == '0' ? mergedText : item.content}} />
                     </Container>
                 );
 

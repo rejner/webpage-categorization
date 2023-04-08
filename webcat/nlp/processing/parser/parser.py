@@ -5,9 +5,9 @@ import sys
 import os
 import joblib
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from parsing_strategy import HighestChildrenFrequencyStrategy
-from parsing_strategy import StoredTemplatesStrategy, TemplatesStrategy, TemplatesStrategy_v2
-from parsing_errors import NoParsableContentError
+from parsing_strategy import TemplatesStrategy, ParsingStrategy, ConfigMappingStrategy
+from parsing_strategy.exceptions import NoParsableContentError
+from api.models_extension import Template
 
 url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 email_pattern = r'[\w\.-]+@[\w\.-]+'
@@ -20,12 +20,28 @@ email_pattern = r'[\w\.-]+@[\w\.-]+'
             timeout (int):               Time limit in seconds for parsing a file.
 '''
 class WebCatParser():
-    def __init__(self, templates, timeout=10) -> None:
+    def __init__(self, db, **kwargs):
         self.format = "%(asctime)s: %(message)s"
         logging.basicConfig(format=self.format, level=logging.INFO, datefmt="%H:%M:%S")
-        self.timeout = timeout
-        self.strategy = TemplatesStrategy_v2(templates)
-        self.fallback_strategy = HighestChildrenFrequencyStrategy()
+        self.db = db
+        file_type = kwargs.get("file_type", "txt")
+
+        if file_type == "html":
+            templates = self.fetch_templates()
+            self.strategy = TemplatesStrategy(templates)
+        
+        if file_type == "csv":
+            mapping = kwargs.get("mapping", None)
+            self.strategy = ConfigMappingStrategy(mapping)
+        
+        if file_type == "txt":
+            self.strategy = ParsingStrategy()
+
+    def fetch_templates(self):
+        templates = []
+        templates = self.db.session.query(Template).all()
+        templates = [template.json_serialize() for template in templates]
+        return templates        
 
     def parse_files(self, file_paths:list):
         """
@@ -52,30 +68,16 @@ class WebCatParser():
     def _parse_file(self, file_path: Path):
         logging.info(f"Parsing file: {file_path}")
         try:
-            with open(file_path) as fd:
-                contents = fd.read()
-                chunks = self.strategy.parse(contents)
-                for chunk in chunks:
-                    chunk['file_path'] = str(file_path)
-                return chunks
+            chunks = self.strategy.parse(file_path)
+            return chunks
 
         except Exception as e:
             logging.info(f"No parsable content found in file: {file_path}")
+            logging.info(e)
             return None
 
-    def clear_text(self, text):
-        # remove urls
-        # urls = re.findall(url_pattern, text)
-        text = re.sub(url_pattern, ' {{URL}} ', text)
-        # remove emails
-        # emails = re.findall(email_pattern, text)
-        text = re.sub(email_pattern, " {{EMAIL}} ", text)
-        # remove html tags
-        text = re.sub(r'<[^>]*>', '', text)
-        return text
-
     def parse_raw_text(self, text):
-        text = self.clear_text(text)
+        text = self.strategy.clear_text(text)
         return text
 
 

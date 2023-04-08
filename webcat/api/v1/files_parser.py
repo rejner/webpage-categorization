@@ -1,23 +1,15 @@
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, request
 
 from nlp.pipeline import WebCatPipeline
 import logging
 from database import db
 from models_extension import *
 import os
-from nlp.models import list_all_models
+from nlp.processing.analyzer.models import list_all_models
 import json
 
+SUPPORTED_FILE_TYPES = ["csv", "html", "txt"]
 
-files_parser = reqparse.RequestParser()
-files_parser.add_argument('hypothesis_template', type=str)
-files_parser.add_argument('labels', type=str, action='append')
-files_parser.add_argument('path', type=str)
-files_parser.add_argument('recursive', type=bool)
-files_parser.add_argument('save', type=bool)
-files_parser.add_argument('models', type=str)
-
-# worker = WebCatWorker(db)
 pipeline = None
 
 class WebCatFilesParser(Resource):
@@ -80,17 +72,21 @@ class WebCatFilesParser(Resource):
         })
 
         return presentation_models, 200
-
+    
     def post(self):
         # parse arguments in a form request
-        args = files_parser.parse_args()
+        args = request.get_json(force=True)
         # verify arguments
         valid, msg = self.verify_request(args)
         if not valid:
             return {'error': msg}, 400
 
+        # get file type
+        file_type = args['file_type']
+        if file_type not in SUPPORTED_FILE_TYPES:
+            return {'error': "File type not supported"}, 400
+        
         models = args['models']
-        models = json.loads(models)
 
         try:
             global pipeline
@@ -99,9 +95,11 @@ class WebCatFilesParser(Resource):
             
             file_paths = self.create_files_list(args['path'], recursive=args['recursive'])
             contents, stats = pipeline.process_files_as_dataset(file_paths, **args)
+
         except Exception as e:
             logging.error(e.with_traceback(None))
             return {'error': str(e)}, 400
 
         return {'contents': contents, 'stats': stats}, 200
+
         # return result, 200

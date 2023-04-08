@@ -1,20 +1,17 @@
 import os
 from .processing.parser import WebCatParser
 from .processing.analyzer import WebCatAnalyzer
-# from api.models_extension import *
-import timeit 
 import multiprocessing as mp
 import logging
 import time
 import datasets
 import time
-import psycopg2
 from api.models_extension import Attribute, AttributeCategory, AttributeEntity, AttributeType, Category, Content, ContentAttribute, Element, ElementType, File, NamedEntity, NamedEntityType, Template, TemplateElement
 
 class WebCatPipeline():
     def __init__(self, db, models):
         self.db = db
-        self.initialize_parser()
+        # self.initialize_parser()
         self.models = models
         self.analyzer = WebCatAnalyzer(models)
         self.batch_size = 16
@@ -29,16 +26,9 @@ class WebCatPipeline():
             return False
         logging.info(f"Keeping cached pipeline.")
         return True
-
-    def fetch_templates(self):
-        templates = []
-        templates = self.db.session.query(Template).all()
-        templates = [template.json_serialize() for template in templates]
-        return templates
     
-    def initialize_parser(self):
-        templates = self.fetch_templates()
-        self.parser = WebCatParser(templates)
+    def initialize_parser(self, **kwargs):
+        self.parser = WebCatParser(self.db, **kwargs)
 
     def load_categories(self, labels):
         labels_to_ids = {}
@@ -57,9 +47,35 @@ class WebCatPipeline():
         self.labels_to_ids = labels_to_ids
         self.ids_to_labels = {v: k for k, v in labels_to_ids.items()}
 
-    def load_attribute_types(self):
+    def load_attribute_types(self, **kwargs):
+        DEFAULT_ATTRIBUTE_TYPES = [
+            {"name": "Post Author", "tag": "post-author", "analyzed": False},
+            {"name": "Post Message", "tag": "post-message", "analyzed": True},
+            {"name": "Post Title", "tag": "post-title", "analyzed": False}
+        ]
         attribute_types_to_ids = {}
         attribute_types = self.db.session.query(AttributeType).all()
+        attribute_types_list = [attribute_type.tag for attribute_type in attribute_types]
+        for attribute_type in DEFAULT_ATTRIBUTE_TYPES:
+            if attribute_type['tag'] not in attribute_types_list:
+                attribute_type = AttributeType(name=attribute_type['name'], tag=attribute_type['tag'], analyzed=attribute_type['analyzed'])
+                self.db.session.add(attribute_type)
+                self.db.session.commit()
+                attribute_types.append(attribute_type)
+
+        if kwargs.get("file_type", None) == "csv":
+            # some custom mapping could appear, we need to prepare db for it
+            attribute_types_to_keep = kwargs.get("mapping", None)['attribute_types_to_keep']
+            attribute_types_to_analyze = kwargs.get("mapping", None)['attribute_types_to_analyze']
+            for attribute_type in attribute_types_to_keep:
+                if attribute_type not in attribute_types_list:
+                    # split by _ and capitalize first letter of each word
+                    name = " ".join([word.capitalize() for word in attribute_type.split("_")])
+                    attribute_type = AttributeType(name=name, tag=attribute_type, analyzed=attribute_type in attribute_types_to_analyze)
+                    self.db.session.add(attribute_type)
+                    self.db.session.commit()
+                    attribute_types.append(attribute_type)
+
         for attribute_type in attribute_types:
             attribute_types_to_ids[attribute_type.tag] = attribute_type.id
         self.attribute_types_to_ids = attribute_types_to_ids
@@ -88,6 +104,12 @@ class WebCatPipeline():
         contents = [content for content in contents if content]
         if len(contents) == 0 or contents == None:
             return [], {"total": 0,"processed": 0,"errors": 0,"duplicate": 0}
+
+        analysis_types = ["post-message"]
+        file_type = kwargs.get("file_type", "txt")
+        if file_type == "csv":
+            mapping = kwargs.get("mapping", {})
+            analysis_types = mapping.get("attribute_types_to_analyze", ["post-message"])
 
         # each content in contets is a list of objects with the following structure:
         # {
@@ -135,7 +157,7 @@ class WebCatPipeline():
                     })
 
         logging.warn(f"Constructing dataset from {len(contents_filtered)} content chunks...")
-        dataset = datasets.Dataset.from_list([{ "text": attribute['content'], "content_index": attribute['content_index'], "attribute_index": attribute['attribute_index'], "hash": attribute['hash'], "file_path": attribute['file_path']} for attribute in attributes if attribute['type'] == 'post-message'])
+        dataset = datasets.Dataset.from_list([{ "text": attribute['content'], "content_index": attribute['content_index'], "attribute_index": attribute['attribute_index'], "hash": attribute['hash'], "file_path": attribute['file_path']} for attribute in attributes if attribute['type'] in analysis_types and attribute['content'] is not None])
     
         processed_objects = []
         stats = {
@@ -188,10 +210,10 @@ class WebCatPipeline():
     def process_files_as_dataset(self, files_path:list, **kwargs):
         start = time.time()
         labels = kwargs["labels"] if "labels" in kwargs else None
-        self.initialize_parser()
+        self.initialize_parser(**kwargs)
         self.load_categories(labels)
         self.load_named_entity_types()
-        self.load_attribute_types()
+        self.load_attribute_types(**kwargs)
         files_contents = self.parser.parse_files(files_path)
 
         analyzed_objects = []
@@ -203,6 +225,7 @@ class WebCatPipeline():
             "duplicate_content": 0,
             "error": 0
         }
+
         for file_content in files_contents:
             logging.info(f"Analyzing file: {file_content[0]['file_path']}")
             try:
@@ -226,17 +249,18 @@ class WebCatPipeline():
         end = time.time()
         print("Time to process files [Dataset]: ", end - start)
         return [obj.json_serialize() for obj in analyzed_objects], stats_all
-    
+
     def process_raw_text(self, text, **kwargs):
         labels = kwargs["labels"] if "labels" in kwargs else None
+        self.initialize_parser(**kwargs)
         self.load_categories(labels)
         self.load_named_entity_types()
         self.load_attribute_types()
         text = self.parser.parse_raw_text(text)
         categories, entities, text = self.analyzer.analyze_content([text], **kwargs)
-        print(categories)
-        print(entities)
-        print(text)
+        # print(categories)
+        # print(entities)
+        # print(text)
         entities = [{'id': 0, 'name': entity[0], 'type': entity[1], 'type_id': self.types_to_ids[entity[1]]} for entity in entities[0] if entity[1] in self.types_to_ids and entity[0] != '']
         res = {
             "categories": categories[0],
@@ -263,13 +287,14 @@ class WebCatPipeline():
                     db_content = Content(content['hash'])
                     attributes = content['attributes'] if 'attributes' in content else []
                     db_content.file = file
+                    db_content.foreign_identity = content['foreign_identity'] if 'foreign_identity' in content else None
                     db_attributes = []
                     for attribute in attributes:
                         # type_id, content, tag
                         db_attribute = Attribute(self.attribute_types_to_ids[attribute['type']], attribute['content'], attribute['tag'])
                         self.db.session.add(db_attribute)
                         self.db.session.flush()
-                        if attribute['type'] == 'post-message' and attribute['categories'] != None:
+                        if attribute['categories'] != None:
                             db_attribute.categories = [AttributeCategory(db_attribute.id, self.labels_to_ids[label], conf) for label, conf in attribute['categories'].items()]
                         
                         ents = attribute['entities'] if 'entities' in attribute else []
@@ -309,13 +334,14 @@ class WebCatPipeline():
                 try:
                     # create new content entry in the database
                     db_content = Content(content['hash'])
+                    db_content.foreign_identity = content['foreign_identity'] if 'foreign_identity' in content else None
                     attributes = content['attributes'] if 'attributes' in content else []
                     db_content.file = file
                     db_attributes = []
                     for attribute in attributes:
                         db_attribute = Attribute(self.attribute_types_to_ids[attribute['type']], attribute['content'], attribute['tag'])
                         db_attribute.type = AttributeType(self.attribute_tag_to_name[attribute['type']], attribute['type'])
-                        if attribute['type'] == 'post-message' and attribute['categories'] != None:
+                        if attribute['categories'] != None:
                             db_attribute.categories = [AttributeCategory(0, self.labels_to_ids[label], conf) for label, conf in attribute['categories'].items()]
                             for attribute_category in db_attribute.categories:
                                 attribute_category.category = Category(self.ids_to_labels[attribute_category.category_id])
