@@ -56,19 +56,35 @@ class WebCatFilesParser(Resource):
             raise Exception("Path is not a file or directory")
 
     def get(self):
-        presentation_models = [
+        classification_models = [
             {
                 "name": model['base_class'].name,
                 "description": model['base_class'].description,
                 "size": model['base_class'].size,
                 "path": model['base_class'].path,
                 "task": model['task'],
-                "default": model['default']
+                "default": model['default'],
+                "default_hypothesis": model['base_class'].default_hypothesis
             }
-            for model in list_all_models()
+            for model in list_all_models() if model['task'] == "classification"
         ]
+        ner_models = [
+            {
+                "name": model['base_class'].name,
+                "description": model['base_class'].description,
+                "size": model['base_class'].size,
+                "path": model['base_class'].path,
+                "task": model['task'],
+                "default": model['default'],
+            }
+            for model in list_all_models() if model['task'] == "ner"
+        ]
+
         presentation_models = json.dumps({
-            "models": presentation_models
+            "models": {
+                "classification": classification_models,
+                "ner": ner_models
+            }
         })
 
         return presentation_models, 200

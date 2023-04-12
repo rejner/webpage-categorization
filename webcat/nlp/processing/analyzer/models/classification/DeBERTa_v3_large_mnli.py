@@ -7,6 +7,7 @@ class DeBerta_v3_large_mnli():
     name = "DeBERTa v3 Large MNLI"
     size = "870 MB"
     description = "A model trained on MNLI dataset using Microsoft's DeBERTa v3 base architecture."
+    default_hypothesis = "This text examines the topic of {} in depth."
 
     def __init__(self, init_labels=None) -> None:
         self.labels = ["drugs", "hacking", "fraud", "counterfeit goods", "cybercrime", "cryptocurrency"] if init_labels is None else init_labels

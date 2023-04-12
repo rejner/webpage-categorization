@@ -7,6 +7,7 @@ class BARTLarge():
     name = "BART Large MNLI"
     size = "1.6 GB"
     description = "A model trained on MNLI dataset using BART Large."
+    default_hypothesis = "The subject of this article is {}."
 
     def __init__(self, init_labels=None) -> None:
         self.labels = ["drugs", "hacking", "fraud", "counterfeit goods", "cybercrime", "cryptocurrency"] if init_labels is None else init_labels

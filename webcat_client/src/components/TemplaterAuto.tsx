@@ -182,7 +182,7 @@ function TemplaterAuto() {
  
                 <Stack direction="horizontal" gap={3}>
 
-                    <Button className="mt-4" variant="primary" onClick={parseFile}>
+                    <Button className="mt-4" variant="primary" onClick={parseFile} disabled={isParsing}>
                         {isParsing ? <Spinner animation="border" size="sm" /> : 'Parse File'}
                     </Button>
                     

@@ -273,7 +273,7 @@ function DataViewer() {
                 <Button className="mt-3 w-25" variant="primary" onClick={() => {
                     console.log(filter);
                     request_content();
-                }}>{isLoading &&
+                }} disabled={isLoading}>{isLoading &&
                         <Spinner animation="border" role="status" size="sm">
                         </Spinner>
                     }

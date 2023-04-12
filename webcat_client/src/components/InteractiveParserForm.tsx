@@ -2,7 +2,7 @@ import React from 'react';
 import { Stack, Container, Button, Form, Row, Col, Card, Spinner } from 'react-bootstrap';
 import { AppContext } from '../index';
 import { InteractiveContent, entity_color_mapping } from '../models/Content';
-import { ModelSpecs } from './FilesParserForm';
+import { ModelSpecs, ClassificationModelSpecs, NerModelSpecs } from './FilesParserForm';
 
 
 function InteractiveParserForm() {
@@ -11,9 +11,9 @@ function InteractiveParserForm() {
     const [input, setInput] = React.useState("");
     const [categories, setCategories] = React.useState();
     const [text, setText] = React.useState();
-    const [availableModels, setAvailableModels] = React.useState<ModelSpecs[]>([]);
-    const [classificationModel, setClassificationModel] = React.useState<ModelSpecs>();
-    const [nerModel, setNerModel] = React.useState<ModelSpecs>();
+    const [availableModels, setAvailableModels] = React.useState<ModelSpecs>();
+    const [classificationModel, setClassificationModel] = React.useState<ClassificationModelSpecs>();
+    const [nerModel, setNerModel] = React.useState<NerModelSpecs>();
     const [showModelSelection, setShowModelSelection] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     // Read server_ip and server_port from the context
@@ -26,13 +26,14 @@ function InteractiveParserForm() {
             .then(data => { 
                 console.log(data);
                 data = JSON.parse(data);
-                let models: ModelSpecs[] = data.models;
+                let models: ModelSpecs = data.models;
                 setAvailableModels(models);
                 // find default models
-                let defaultClassificationModel = models.find(model => model.task === "classification" && model.default);
-                let defaultNerModel = models.find(model => model.task === "ner" && model.default);
+                let defaultClassificationModel = models.classification.find(model => model.default);
+                let defaultNerModel = models.ner.find(model => model.default);
                 if (defaultClassificationModel) {
                     setClassificationModel(defaultClassificationModel);
+                    setHypothesisTemplate(defaultClassificationModel.default_hypothesis);
                 }
                 if (defaultNerModel) {
                     setNerModel(defaultNerModel);
@@ -95,11 +96,14 @@ function InteractiveParserForm() {
                         <Stack gap={3} direction="vertical">
                             <Form.Group controlId="formModel">
                                 <Form.Label className='text-light'>Classification Model</Form.Label>
-                                <Form.Select aria-label="Default select example w-25" value={classificationModel?.name} onChange={(e) => setClassificationModel(
-                                    availableModels.find((model) => model.name == e.target.value)
-                                )}>
+                                <Form.Select aria-label="Default select example w-25" value={classificationModel?.name} onChange={(e) => 
+                                {
+                                    let model: ClassificationModelSpecs = availableModels.classification.find((model) => model.name == e.target.value)!;
+                                    setClassificationModel(model);
+                                    setHypothesisTemplate(model.default_hypothesis);
+                                }}>
                                     {
-                                        availableModels.map((model, index) => {
+                                        availableModels.classification.map((model, index) => {
                                             if (model.task == 'classification'){
                                                 return <option key={index} value={model.name}>{model.name}</option>
                                             }
@@ -119,10 +123,10 @@ function InteractiveParserForm() {
                             <Form.Group className="mb-3" controlId="formModel">
                                 <Form.Label className='text-light'>Entity Recognition Model</Form.Label>
                                 <Form.Select aria-label="Default select example w-25" value={nerModel?.name} onChange={(e) => setNerModel(
-                                    availableModels.find((model) => model.name == e.target.value)
+                                    availableModels.ner.find((model) => model.name == e.target.value)
                                 )}>
                                     {
-                                        availableModels.map((model, index) => {
+                                        availableModels.ner.map((model, index) => {
                                             if (model.task == 'ner'){
                                                 return <option key={index} value={model.name}>{model.name}</option>
                                             }
@@ -158,7 +162,7 @@ function InteractiveParserForm() {
                         <Form.Control  as="textarea" rows={3} placeholder="Enter text to be parsed." value={input} onChange={(e) => setInput(e.target.value)} />
                     </Form.Group>
 
-                    <Button variant="primary" type="submit" className='w-25'>
+                    <Button variant="primary" type="submit" className='w-25' disabled={isSubmitting}>
                         {isSubmitting && <Spinner animation="border" size="sm" />}
                         {!isSubmitting && <span>Submit</span>}
                     </Button>
@@ -169,10 +173,10 @@ function InteractiveParserForm() {
                     Object.keys(categories).map((key) => {
                         var score = parseFloat(categories[key]);
                         var color = 'bg-danger';
-                        if (score > 0.5) {
+                        if (score > 0.8) {
                             color = 'bg-success';
                         }
-                        else if (score > 0.25) {
+                        else if (score > 0.5) {
                             color = 'bg-warning';
                         }
                         // predefine className and add color to it

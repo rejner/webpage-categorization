@@ -15,7 +15,7 @@ models = [
         "tokenizer_class": AutoTokenizer,
         "base_class": BARTLarge,
         "task": "classification",
-        "default": True
+        "default": False
     },
     {
         "tokenizer": "tner/twitter-roberta-base-dec2021-tweetner7-random",
@@ -45,7 +45,7 @@ models = [
         "tokenizer_class": AutoTokenizer,
         "base_class": DeBerta_v3_large_mnli,
         "task": "classification",
-        "default": False
+        "default": True
     }
 ]
 

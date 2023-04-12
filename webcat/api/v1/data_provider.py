@@ -89,6 +89,9 @@ class WebCatDataProvider(Resource):
         query = query.intersect(file_query)
         query = query.intersect(author_query)
 
+        # set max limit for query
+        query = query.limit(200)
+
         # execute the query and return the results
         return query.all()
 

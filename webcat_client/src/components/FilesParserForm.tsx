@@ -15,6 +15,21 @@ interface FilesParserStats {
 }
 
 export interface ModelSpecs {
+    "classification": ClassificationModelSpecs[],
+    "ner": NerModelSpecs[]
+}
+
+export interface ClassificationModelSpecs {
+    name: string;
+    path: string;
+    task: string;
+    description?: string;
+    size: string;
+    default: boolean;
+    default_hypothesis: string;
+}
+
+export interface NerModelSpecs {
     name: string;
     path: string;
     task: string;
@@ -40,9 +55,9 @@ function FilesParserForm() {
     const [useRecursive, setUseRecursive] = React.useState(false);
     const [content, setContent] = React.useState() as [[Content], any];
     const [stats, setStats] = React.useState() as FilesParserStats | any;
-    const [availableModels, setAvailableModels] = React.useState<ModelSpecs[]>();
-    const [classificationModel, setClassificationModel] = React.useState<ModelSpecs>();
-    const [nerModel, setNerModel] = React.useState<ModelSpecs>();
+    const [availableModels, setAvailableModels] = React.useState<ModelSpecs>();
+    const [classificationModel, setClassificationModel] = React.useState<ClassificationModelSpecs>();
+    const [nerModel, setNerModel] = React.useState<NerModelSpecs>();
     const [showModelSelection, setShowModelSelection] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [saveFiles, setSaveFiles] = React.useState(true);
@@ -66,13 +81,14 @@ function FilesParserForm() {
             .then(data => { 
                 data = JSON.parse(data);
                 console.log(data);
-                let models: ModelSpecs[] = data.models;
+                let models: ModelSpecs = data.models;
                 setAvailableModels(models);
                 // find default models
-                let defaultClassificationModel = models.find(model => model.task === "classification" && model.default);
-                let defaultNerModel = models.find(model => model.task === "ner" && model.default);
+                let defaultClassificationModel = models.classification.find(model => model.default);
+                let defaultNerModel = models.ner.find(model => model.task === "ner" && model.default);
                 if (defaultClassificationModel) {
                     setClassificationModel(defaultClassificationModel);
+                    setHypothesisTemplate(defaultClassificationModel.default_hypothesis);
                 }
                 if (defaultNerModel) {
                     setNerModel(defaultNerModel);
@@ -146,11 +162,13 @@ function FilesParserForm() {
                         <Stack gap={3} direction="vertical">
                             <Form.Group className="mb-1" controlId="formModel">
                                 <Form.Label className='text-light'>Classification Model</Form.Label>
-                                <Form.Select aria-label="Default select example" value={classificationModel?.name} onChange={(e) => setClassificationModel(
-                                    availableModels.find((model) => model.name == e.target.value)
-                                )}>
+                                <Form.Select aria-label="Default select example" value={classificationModel?.name} onChange={(e) => {
+                                    let model: ClassificationModelSpecs = availableModels.classification.find((model) => model.name == e.target.value)!;
+                                    setClassificationModel(model);
+                                    setHypothesisTemplate(model.default_hypothesis);
+                                }}>
                                     {
-                                        availableModels.map((model, index) => {
+                                        availableModels.classification.map((model, index) => {
                                             if (model.task == 'classification'){
                                                 return <option key={index} value={model.name}>{model.name}</option>
                                             }
@@ -170,10 +188,10 @@ function FilesParserForm() {
                             <Form.Group className="mb-3" controlId="formModel">
                                 <Form.Label className='text-light'>Entity Recognition Model</Form.Label>
                                 <Form.Select aria-label="Default select example" value={nerModel?.name} onChange={(e) => setNerModel(
-                                    availableModels.find((model) => model.name == e.target.value)
+                                    availableModels.ner.find((model) => model.name == e.target.value)
                                 )}>
                                     {
-                                        availableModels.map((model, index) => {
+                                        availableModels.ner.map((model, index) => {
                                             if (model.task == 'ner'){
                                                 return <option key={index} value={model.name}>{model.name}</option>
                                             }
@@ -271,7 +289,7 @@ function FilesParserForm() {
                             </Form.Group>
                     </Stack>
 
-                    <Button variant="primary" type="submit" className='w-25'>
+                    <Button variant="primary" type="submit" className='w-25 mb-5' disabled={isSubmitting}>
                         {isSubmitting && <Spinner animation="border" size="sm" />}
                         {!isSubmitting && <span>Submit</span>}
                     </Button>

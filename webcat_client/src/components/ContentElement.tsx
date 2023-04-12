@@ -106,10 +106,10 @@ export const ContentElement = (props: ContentElementProps) => {
                     return;
                 }
                 var color = 'bg-danger';
-                if (score > 0.5) {
+                if (score > 0.8) {
                     color = 'bg-success';
                 }
-                else if (score > 0.25) {
+                else if (score > 0.5) {
                     color = 'bg-warning';
                 }
                 // predefine className and add color to it
