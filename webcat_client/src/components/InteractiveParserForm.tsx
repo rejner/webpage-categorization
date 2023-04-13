@@ -4,10 +4,29 @@ import { AppContext } from '../index';
 import { InteractiveContent, entity_color_mapping } from '../models/Content';
 import { ModelSpecs, ClassificationModelSpecs, NerModelSpecs } from './FilesParserForm';
 
+export const hypothesis_presets = [
+    "The text examines the topic of {} in depth.",
+    "The topic of this text is {}.",
+    "The text provides information about {}.",
+    "The text discusses {}.",
+    "The text contains information relevant to {}.",
+    "The text provides insights into {}.",
+    "The text sheds light on {}.",
+    "The text explores {} in detail.",
+    "The text provides a comprehensive analysis of {}.",
+    "The text covers the topic of {} extensively.",
+    "The text delves deeply into the topic of {}.",
+    "The example is about {}."
+]
+
+export const label_presets = [
+    "drugs,hacking,fraud,cryptocurrency,delivery,weapons,porn,childporn,software,investing,politics",
+    "crypto mining, crypto trading, bitcoin",
+]
 
 function InteractiveParserForm() {
     const [hypothesisTemplate, setHypothesisTemplate] = React.useState("This example is about {}.");
-    const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cybercrime,cryptocurrency,delivery");
+    const [labels, setLabels] = React.useState(label_presets[0]);
     const [input, setInput] = React.useState("");
     const [categories, setCategories] = React.useState();
     const [text, setText] = React.useState();
@@ -16,6 +35,8 @@ function InteractiveParserForm() {
     const [nerModel, setNerModel] = React.useState<NerModelSpecs>();
     const [showModelSelection, setShowModelSelection] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [showLabelPresets, setShowLabelPresets] = React.useState(false);
+    const [showHypothesisPresets, setShowHypothesisPresets] = React.useState(false);
     // Read server_ip and server_port from the context
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
     
@@ -144,8 +165,22 @@ function InteractiveParserForm() {
                             </Form.Group>
                         </Stack>
                     }
+
                     <Form.Group className="mb-3" controlId="formHypothesisTemplate">
                         <Form.Label className='text-light'>Hypothesis Template</Form.Label>
+                        <Form.Switch className="mb-2" label="Show pre-defined hypothesis templates" checked={showHypothesisPresets} onChange={(e) => setShowHypothesisPresets(e.target.checked)} />
+                        {/* Selector of pre-defined hypothesis templates */}
+                        {
+                            showHypothesisPresets &&
+                            <Form.Select aria-label="Default select example" className='w-50 mb-2' onChange={(e) => setHypothesisTemplate(e.target.value)}>
+                            {
+                                hypothesis_presets.map((hypothesis, index) => {
+                                    return <option key={index} value={hypothesis}>{hypothesis}</option>
+                                })
+                            }
+                            </Form.Select>
+                        }
+             
                         <Form.Control type="string" placeholder="Enter hypothesis template in the form: My hypothesis {}." value={hypothesisTemplate} onChange={(e) => setHypothesisTemplate(e.target.value)}/>
                         <Form.Text className="text-muted">
                             At inference time, labels will be placed inside the {"{}"}.
@@ -154,6 +189,18 @@ function InteractiveParserForm() {
 
                     <Form.Group className="mb-3" controlId="formLabels">
                         <Form.Label className='text-light'>Labels</Form.Label>
+                        <Form.Switch className="mb-2" label="Show pre-defined labels" checked={showLabelPresets} onChange={(e) => setShowLabelPresets(e.target.checked)} />
+                        {
+                            showLabelPresets &&
+                            <Form.Select aria-label="Default select example" className='w-50 mb-2' onChange={(e) => setLabels(e.target.value)}>
+                            {
+                                label_presets.map((label, index) => {
+                                    return <option key={index} value={label}>{label}</option>
+                                })
+                            }
+                            </Form.Select>
+                        }
+             
                         <Form.Control type="string" placeholder="Enter labels separated by ',' symbol." value={labels} onChange={(e) => setLabels(e.target.value)}/>
                     </Form.Group>
 

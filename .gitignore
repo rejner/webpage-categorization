@@ -17,3 +17,4 @@ webcat/.env
 webcat/model_repository/*
 !webcat/model_repository/download.py
 .env
+models/newsgroup_dataset

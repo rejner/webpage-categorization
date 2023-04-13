@@ -248,6 +248,7 @@ class WebCatPipeline():
 
         end = time.time()
         print("Time to process files [Dataset]: ", end - start)
+        self.db.session.close()
         return [obj.json_serialize() for obj in analyzed_objects], stats_all
 
     def process_raw_text(self, text, **kwargs):
@@ -340,7 +341,7 @@ class WebCatPipeline():
                     db_attributes = []
                     for attribute in attributes:
                         db_attribute = Attribute(self.attribute_types_to_ids[attribute['type']], attribute['content'], attribute['tag'])
-                        db_attribute.type = AttributeType(self.attribute_tag_to_name[attribute['type']], attribute['type'])
+                        db_attribute.type = AttributeType(self.attribute_tag_to_name[attribute['type']], attribute['type'], analyzed=True)
                         if attribute['categories'] != None:
                             db_attribute.categories = [AttributeCategory(0, self.labels_to_ids[label], conf) for label, conf in attribute['categories'].items()]
                             for attribute_category in db_attribute.categories:

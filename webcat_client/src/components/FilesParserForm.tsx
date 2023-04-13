@@ -4,6 +4,7 @@ import { useFilePicker, Validator } from 'use-file-picker';
 import { AppContext } from '../index';
 import {Content,  NamedEntity, entity_color_mapping} from '../models/Content';
 import { ContentElement } from './ContentElement';
+import {hypothesis_presets, label_presets} from './InteractiveParserForm';
 
 interface FilesParserStats {
     "total_contents": number,
@@ -50,7 +51,7 @@ interface Mapping {
 
 function FilesParserForm() {
     const [hypothesisTemplate, setHypothesisTemplate] = React.useState("The topic of this text is about {}.");
-    const [labels, setLabels] = React.useState("drugs,hacking,fraud,counterfeit goods,cryptocurrency,delivery,weapons");
+    const [labels, setLabels] = React.useState(label_presets[0]);
     const [path, setPath] = React.useState("");
     const [useRecursive, setUseRecursive] = React.useState(false);
     const [content, setContent] = React.useState() as [[Content], any];
@@ -61,6 +62,8 @@ function FilesParserForm() {
     const [showModelSelection, setShowModelSelection] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [saveFiles, setSaveFiles] = React.useState(true);
+    const [showHypothesisPresets, setShowHypothesisPresets] = React.useState(false);
+    const [showLabelPresets, setShowLabelPresets] = React.useState(false);
     const [fileType, setFileType] = React.useState("html");
     const [mapping, setMapping] = React.useState<Mapping>({
         content_identifier_column: "",
@@ -211,6 +214,18 @@ function FilesParserForm() {
                     }
                     <Form.Group className="mb-3" controlId="formHypothesisTemplate">
                         <Form.Label className='text-light'>Hypothesis Template</Form.Label>
+                        <Form.Switch className="mb-2" label="Show pre-defined hypothesis templates" checked={showHypothesisPresets} onChange={(e) => setShowHypothesisPresets(e.target.checked)} />
+                        {/* Selector of pre-defined hypothesis templates */}
+                        {
+                            showHypothesisPresets &&
+                            <Form.Select aria-label="Default select example" className='w-50 mb-2' onChange={(e) => setHypothesisTemplate(e.target.value)}>
+                            {
+                                hypothesis_presets.map((hypothesis, index) => {
+                                    return <option key={index} value={hypothesis}>{hypothesis}</option>
+                                })
+                            }
+                            </Form.Select>
+                        }
                         <Form.Control type="string" placeholder="Enter hypothesis template in the form: My hypothesis {}." value={hypothesisTemplate} onChange={(e) => setHypothesisTemplate(e.target.value)}/>
                         <Form.Text className="text-muted">
                             At inference time, labels will be placed inside the {"{}"}.
@@ -219,6 +234,17 @@ function FilesParserForm() {
 
                     <Form.Group className="mb-3" controlId="formLabels">
                         <Form.Label className='text-light'>Labels</Form.Label>
+                        <Form.Switch className="mb-2" label="Show pre-defined labels" checked={showLabelPresets} onChange={(e) => setShowLabelPresets(e.target.checked)} />
+                        {
+                            showLabelPresets &&
+                            <Form.Select aria-label="Default select example" className='w-50 mb-2' onChange={(e) => setLabels(e.target.value)}>
+                            {
+                                label_presets.map((label, index) => {
+                                    return <option key={index} value={label}>{label}</option>
+                                })
+                            }
+                            </Form.Select>
+                        }
                         <Form.Control type="string" placeholder="Enter labels separated by ',' symbol." value={labels} onChange={(e) => setLabels(e.target.value)}/>
                     </Form.Group>
 

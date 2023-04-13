@@ -12,10 +12,15 @@ interface ContentElementProps {
     onDelete?: (id: number) => void, 
 }
 
+interface MergedText 
+{
+    [key: string]: string;
+}
+
 export const ContentElement = (props: ContentElementProps) => {
     const [content, setContent] = React.useState<Content>();
     // long textual content might be split into multiple attributes
-    const [mergedText, setMergedText] = React.useState('');
+    const [mergedText, setMergedText] = React.useState<MergedText>({});
     const [mergedCategories, setMergedCategories] = React.useState<any>({});
     // const [analysedContentTags, setAnalysedContentTags] = React.useState<string[]>([...props.content_tags]);
 
@@ -36,15 +41,19 @@ export const ContentElement = (props: ContentElementProps) => {
     }, [mergedText, mergedCategories]);
 
     function processContent() {
-        let merged_text = "";
+        let merged_text_obj: MergedText = {};
         let merged_categories: { [key: string]: number } = {};
         for (let a of content!.attributes) {
+            // let merged_text = "";
             if (a.entities !== null && a.entities.length > 0) {
                 a.content = insertNamedEntitiesIntoText(a.content, a.entities);
             }
             //console.log(a.categories);
             if (a.type.analyzed) {
-                merged_text += `[CHUNK #${a.tag}] ` + a.content + " ";
+                if (merged_text_obj[a.type.tag] === undefined) {
+                    merged_text_obj[a.type.tag] = "";
+                }
+                merged_text_obj[a.type.tag] += `[CHUNK #${a.tag}] ` + a.content + " ";
                 //console.log(a.categories);
                 for (let cat of a.categories) {
                     let key = cat.category.name;
@@ -57,8 +66,9 @@ export const ContentElement = (props: ContentElementProps) => {
                 //console.log(merged_categories);
             }
         }
-        if (merged_text.length > 0) {
-            setMergedText(merged_text);
+        
+        if (Object.keys(merged_text_obj).length > 0) {
+            setMergedText(merged_text_obj);
         }
         if (Object.keys(merged_categories).length > 0) {
             setMergedCategories(merged_categories);
@@ -134,7 +144,7 @@ export const ContentElement = (props: ContentElementProps) => {
                 return (
                     <Container className='text-light mb-3' key={index}>
                         <h3 className='mb-3'>{item.type.name}</h3>
-                        <div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.type.analyzed && item.tag == '0' ? mergedText : item.content}} />
+                        <div className='text-light mt-3' dangerouslySetInnerHTML={{__html: item.type.analyzed && item.tag == '0' ? mergedText[item.type.tag] : item.content}} />
                     </Container>
                 );
 
