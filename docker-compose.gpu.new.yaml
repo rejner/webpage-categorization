@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  webcat-client:
+    image: webcat/node-client
+    restart: always
+    ports:
+      - '3000:3000'
+    depends_on:
+      - webcat-api
+    environment:
+      - REACT_APP_API_URL=http://webcat-server:8080
+    volumes:
+      - "${LOCAL_PATH}/webcat_client:/workspace/webcat_client"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace/webcat_client
+        npm start
+  
+  webcat-api:
+    image: webcat/api
+    restart: always
+    ports:
+      - '5000:5000'
+    depends_on:
+      - postgres
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_api:/workspace/webcat_api"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_api/run_api.py
+
+  webcat-scheduler:
+    image: webcat/scheduler
+    restart: always
+    ports:
+      - '5001:5001'
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_scheduler:/workspace/webcat_scheduler"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_scheduler/run_api.py
+
+  webcat-worker:
+    image: webcat/server-gpu
+    restart: always
+    ports:
+      - '5003:5003'
+    environment:
+      - PORT=5003
+      - HOST=webcat-worker
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_worker:/workspace/webcat_worker"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat/model_repository/download.py
+        python3 webcat_worker/run_api.py
+      # python3 /workspace/webcat/wait.py
+        
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=webcat_db
+    ports:
+      - '5432:5432'
+    volumes: 
+      - db:/var/lib/postgresql/data
+
+volumes:
+  db:
+    driver: local
