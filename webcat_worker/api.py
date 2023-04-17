@@ -36,7 +36,9 @@ def create_app(host, port, bare=False):
             if worker is None:
                 worker = Worker(url=url, status='free', type='gpu')
                 db.session.add(worker)
-                db.session.commit()
+            
+            worker.status = 'free'
+            db.session.commit()
         except Exception as e:
             print(e)
             exit(1)

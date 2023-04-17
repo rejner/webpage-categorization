@@ -20,9 +20,21 @@ def is_worker_alive(url):
     except:
         return False
 
+def set_worker_as_dead(worker):
+    worker.status = 'dead'
+    db.session.commit()
+
 def get_free_worker(type='gpu'):
-    worker = Worker.query.filter_by(type=type, status='free').first()
-    return worker
+    workers = Worker.query.filter_by(type=type, status='free').all()
+    for worker in workers:
+        if not is_worker_alive(worker.url):
+            logging.info('Worker {} is dead'.format(worker.url))
+            set_worker_as_dead(worker)
+            continue
+        # return first free worker
+        return worker
+
+    return None
 
 def reserve_worker(worker):
     worker.status = 'busy'

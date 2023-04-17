@@ -10,6 +10,7 @@ import api
 if __name__ == "__main__":
     port = 5002
     host = '0.0.0.0'
+    docker_host = 'host.docker.internal'
     if os.environ.get('PORT') and os.environ.get('HOST'):
         port = int(os.environ.get('PORT'))
         docker_host = os.environ.get('HOST')

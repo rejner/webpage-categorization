@@ -248,8 +248,9 @@ class WebCatPipeline():
 
         end = time.time()
         print("Time to process files [Dataset]: ", end - start)
+        serialized_content = [obj.json_serialize() for obj in analyzed_objects]
         self.db.session.close()
-        return [obj.json_serialize() for obj in analyzed_objects], stats_all
+        return serialized_content, stats_all
 
     def process_raw_text(self, text, **kwargs):
         labels = kwargs["labels"] if "labels" in kwargs else None

@@ -101,7 +101,6 @@ class WebCatFilesParser(Resource):
         if file_type not in SUPPORTED_FILE_TYPES:
             return {'error': "File type not supported"}, 400
         
-        g.occupation = True
         models = args['models']
 
         try:
@@ -114,10 +113,8 @@ class WebCatFilesParser(Resource):
 
         except Exception as e:
             logging.error(e.with_traceback(None))
-            g.occupation = False
             return {'error': str(e)}, 400
 
-        g.occupation = False
         return {'contents': contents, 'stats': stats}, 200
 
         # return result, 200

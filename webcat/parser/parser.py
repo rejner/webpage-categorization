@@ -9,8 +9,14 @@ from .parsing_strategy import TemplatesStrategy, ParsingStrategy, ConfigMappingS
 from .parsing_strategy.exceptions import NoParsableContentError
 from webcat.models_extension import Template
 
+logging.basicConfig(level=logging.DEBUG)
 url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 email_pattern = r'[\w\.-]+@[\w\.-]+'
+
+
+def mock_parse_file(file_path: Path):
+    logging.info(f"Parsing file: {file_path}")
+    return None
 
 '''
     WebCatParser class definition.
@@ -22,7 +28,7 @@ email_pattern = r'[\w\.-]+@[\w\.-]+'
 class WebCatParser():
     def __init__(self, db, **kwargs):
         self.format = "%(asctime)s: %(message)s"
-        logging.basicConfig(format=self.format, level=logging.INFO, datefmt="%H:%M:%S")
+        logging.basicConfig(format=self.format, level=logging.DEBUG, datefmt="%H:%M:%S")
         self.db = db
         file_type = kwargs.get("file_type", "txt")
 
@@ -58,46 +64,25 @@ class WebCatParser():
             return contents
         
         # use joblib to parallelize the parsing process (returns a list of tuples, where each tuple is (file_path, list of strings (texts))
-        contents = joblib.Parallel(n_jobs=-1, verbose=1)(joblib.delayed(self._parse_file)(file) for file in file_paths)
+        contents = joblib.Parallel(n_jobs=-1, verbose=1)(joblib.delayed(parse_file)(file, self.strategy) for file in file_paths)
         contents = [item for item in contents if item is not None]
         return contents
-
-    '''
-        Parse given file with a set of tools and create data object.
-    '''
-    def _parse_file(self, file_path: Path):
-        logging.info(f"Parsing file: {file_path}")
-        try:
-            chunks = self.strategy.parse(file_path)
-            return chunks
-
-        except Exception as e:
-            logging.info(f"No parsable content found in file: {file_path}")
-            logging.info(e)
-            return None
 
     def parse_raw_text(self, text):
         text = self.strategy.clear_text(text)
         return text
 
-
-if __name__ == "__main__":
-
-    # set parent directory to path
-
-    parser = WebCatParser()
-    # directory = "D:\FIT-VUT\DP\webpage_categorization\data\\abraxas-forums\\abraxas-forums\\2015-07-04"
-    # files = os.listdir('D:\FIT-VUT\DP\webpage_categorization\data\\abraxas-forums\\abraxas-forums\\2015-07-04')
-    # files = [os.path.join(directory, filename) for filename in files]
-    # analyzer.analyze_files(files)
-    # exit(0)
-    # contents = parser.parse_files([
-    #     "data/abraxas-forums/abraxas-forums/2015-07-04/index.php_action=recent;start=10",
-    #     # "D:\FIT-VUT\DP\webpage_categorization\data\\abraxas-forums\\abraxas-forums\\2015-07-04\index.php_action=mlist;sa=all;start=e",
-    #     # "D:\FIT-VUT\DP\webpage_categorization\data\\abraxas-forums\\abraxas-forums\\2015-07-04\index.php_topic=1197.0",
-    #     # "D:\FIT-VUT\DP\webpage_categorization\data\\abraxas-forums\\abraxas-forums\\2015-07-04\index.php_topic=904.1200"
-    #     ])
-    # print(contents)
-
-
     
+'''
+    Parse given file with a set of tools and create data object.
+'''
+def parse_file(file_path: Path, strategy: ParsingStrategy):
+    logging.info(f"Parsing file: {file_path}")
+    try:
+        chunks = strategy.parse(file_path)
+        return chunks
+
+    except Exception as e:
+        logging.info(f"No parsable content found in file: {file_path}")
+        logging.info(e)
+        return None

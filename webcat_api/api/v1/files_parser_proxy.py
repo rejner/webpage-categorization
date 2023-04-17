@@ -54,7 +54,7 @@ class WebCatFilesParserProxy(Resource):
     def get_available_worker(self, args):
         # construct request to webcat_scheduler
         # get free worker
-        res = requests.post("http://localhost:5001/webcat_scheduler", json=args)
+        res = requests.post("http://webcat-scheduler:5001/webcat_scheduler", json=args)
         if res.status_code == 503:
             raise Exception("No available workers")
         
@@ -67,7 +67,7 @@ class WebCatFilesParserProxy(Resource):
         # release worker
         if worker is None:
             return
-        res = requests.delete("http://localhost:5001/webcat_scheduler", json=worker)
+        res = requests.delete("http://webcat-scheduler:5001/webcat_scheduler", json=worker)
         if res.status_code != 200:
             raise Exception("Could not release worker")
 
@@ -119,6 +119,7 @@ class WebCatFilesParserProxy(Resource):
         if file_type not in SUPPORTED_FILE_TYPES:
             return {'error': "File type not supported"}, 400
 
+        worker = None
         try:
             worker = self.get_available_worker(args)
             url = worker['url'] + "/webcat_files_parser"
