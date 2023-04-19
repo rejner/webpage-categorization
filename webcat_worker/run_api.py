@@ -16,4 +16,4 @@ if __name__ == "__main__":
         docker_host = os.environ.get('HOST')
     logging.info('Starting worker on {}:{}'.format(host, port))
     app, _ = api.create_app(docker_host, port)
-    app.run(debug=False, host=host, port=port)
+    app.run(debug=True, host=host, port=port)

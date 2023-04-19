@@ -117,7 +117,7 @@ function TemplaterAuto() {
         };
 
         // send file to server
-        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/manager`, {
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/templates`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -206,7 +206,7 @@ function TemplaterAuto() {
                 <div > {/* Arrow right symbol: &#8594; */}
                     {
                         templateProposal.elements.map((element, index) => {
-                            return <h6 key={index}>{index + 1}: {element.type}:  depth: ({element.depth}), {element.tag} {"-->"} {element.parent_tag} {"-->"} {element.grandparent_tag} </h6>
+                            return <h6 key={index}>{index + 1}: {element.type.tag}:  depth: ({element.depth}), {element.tag} {"-->"} {element.parent_tag} {"-->"} {element.grandparent_tag} </h6>
                         }
                             )
                     }

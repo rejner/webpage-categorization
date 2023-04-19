@@ -65,15 +65,8 @@ class ChatGPTTemplateEngine(TemplateEngine):
             "post-author": ["div", "a"],
             "post-message": ["div", "p"]
         }
-        self.setKey()
     
-    def setKey(self, key=None):
-        if key is None:
-            try:
-                key = os.environ["OPENAI_API_KEY"]
-            except KeyError:
-                raise MissingOpenAIKeyError("OpenAI API key not provided.")
-            
+    def setKey(self, key):
         self.api_key = key
         openai.api_key = self.api_key
 

@@ -6,5 +6,12 @@ export interface Element {
     'parent_tag': string;
     'grandparent_tag': string;
     'depth': number;
-    'type': string;
+    'type': ElementType;
+}
+
+export interface ElementType {
+    'id': number;
+    'name': string;
+    'tag': string;
+    'analysis_flag': boolean;
 }

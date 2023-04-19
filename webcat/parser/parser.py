@@ -59,7 +59,7 @@ class WebCatParser():
         # if only one file is given, do not use joblib
         if len(file_paths) == 1:
             path = Path(file_paths[0])
-            contents = [self._parse_file(path)]
+            contents = [parse_file(path, self.strategy)]
             contents = [item for item in contents if item is not None]
             return contents
         

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Container, Button, Form, Row, Col, Spinner, Table } from 'react-bootstrap';
 import { AppContext } from '..';
-import { colorToSectionMapping } from './Templater';
 import { Template } from '../models/Template';
 import { Element } from '../models/Element';
 
@@ -15,7 +14,7 @@ function TemplateManager() {
     function fetch_templates(version: number) {
         setLoading(true);
         // get request to the server
-        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/manager?` + new URLSearchParams('version=' + version)
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/templates?` + new URLSearchParams('version=' + version)
         ).then(response => response.json())
         .then(data => {
                 console.log(JSON.parse(data));
@@ -27,13 +26,12 @@ function TemplateManager() {
 
     // fetch templates from the server
     useEffect(() => {
-        fetch_templates(1);
         fetch_templates(2);
     }, []);
 
     function deleteTemplate(id: number, version: number) {
         // delete request to the server
-        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/manager`, {
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/templates`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
@@ -78,7 +76,9 @@ function TemplateManager() {
                                         template.elements.map((element, index) => {
                                             return (
                                                 <ul key={index}>
-                                                    <li>Type: {element.type}</li>
+                                                    <li>Type name: {element.type.name}</li>
+                                                    <li>Type tag: {element.type.tag}</li>
+                                                    <li>Analysis flag: {element.type.analysis_flag ? 'true' : 'false'}</li>
                                                     <li>Tag: {element.tag}</li>
                                                     <li>Parent Tag: {element.parent_tag}</li>
                                                     <li>Grandparent Tag: {element.grandparent_tag}</li>

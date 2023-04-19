@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { ControlsContext, TemplatesContext } from "./Templater";
-import { colorToSectionMapping } from "./Templater";
-import { Element } from "../models/Element";
+import { Element, ElementType } from "../models/Element";
 
 interface Props {
   el: HTMLElement;
@@ -12,8 +11,8 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
   const [isOpen, setOpen] = useState(false);
   const [elementText, setElementText] = useState('');
   const [isSelected, setSelected] = useState(false);
-  const [label, setLabel] = useState<string | undefined>(undefined);
-  const {selectedLabel, setSelectedLabel, unrollAll, setUnrollAll} = useContext(ControlsContext);
+  const [elementType, setElementType] = useState<ElementType | undefined>(undefined);
+  const {selectedElementType, setSelectedElementType, unrollAll, setUnrollAll, elementTypeColors, setElementTypeColors} = useContext(ControlsContext);
   const {createTemplate, setCreateTemplate, elements, addElement} = useContext(TemplatesContext);
 
   useEffect(() => {
@@ -28,7 +27,7 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
   useEffect(() => {
       if (createTemplate && isSelected) {
           let newElement: Element = {
-              type: colorToSectionMapping[label!],
+              type: elementType!,
               tag: el.tagName.toLowerCase(),
               id: 0,
               parent_tag: el.parentElement?.tagName.toLowerCase() || "",
@@ -47,9 +46,9 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
 
   const toggleSelected = () => {
     setSelected(!isSelected);
-    setLabel(selectedLabel);
+    setElementType(selectedElementType);
     console.log("weee");
-    console.log(selectedLabel);
+    console.log(selectedElementType);
     };
   
   function extractTopLevelText(el: HTMLElement) {
@@ -63,7 +62,7 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
   }
 
   return (
-    <div className={isSelected ? "bg-" + label + " border-left-0 border-primary" : "border-left-0 border-primary"}>
+    <div className={isSelected ? "bg-" + elementTypeColors[elementType?.tag!] + " border-left-0 border-primary" : "border-left-0 border-primary"}>
 
           <div style={{ cursor: 'pointer' }} className="border-top border-dark">
             {/* Put &nbsp; times depth */}

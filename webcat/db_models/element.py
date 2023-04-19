@@ -5,6 +5,7 @@ class Element(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     type_id = db.Column(db.Integer, db.ForeignKey('element_types.id'))
+    type = db.relationship('ElementType', backref=db.backref('elements', lazy=True, cascade="all, delete-orphan", single_parent=True))
     tag = db.Column(db.String(100))
     parent_tag = db.Column(db.String(100))
     grandparent_tag = db.Column(db.String(100))
@@ -28,5 +29,6 @@ class Element(db.Model):
             'type_id': self.type_id,
             'parent_tag': self.parent_tag,
             'grandparent_tag': self.grandparent_tag,
-            'depth': self.depth
+            'depth': self.depth,
+            'type': self.type.json_serialize()
         }

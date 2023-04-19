@@ -56,6 +56,25 @@ services:
         cd /workspace
         python3 webcat_scheduler/run_api.py
 
+  webcat-templates:
+    image: webcat/templates
+    restart: always
+    ports:
+      - '5002:5002'
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_templates:/workspace/webcat_templates"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_templates/run_api.py
+
   webcat-worker:
     image: webcat/server-gpu
     restart: always

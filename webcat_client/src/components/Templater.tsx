@@ -7,32 +7,28 @@ import { useFilePicker } from 'use-file-picker';
 import { RenderElement } from './RenderElement';
 import { AppContext } from '..';
 import { Template } from '../models/Template';
-import { Element } from '../models/Element';
+import { Element, ElementType } from '../models/Element';
 
 
-export const colorToSectionMapping: {[key: string]: string} = {
-    primary: "post-message",
-    secondary: "post-author",
-    success: "post-header",
-    // danger: "post-footer",
-    // warning: "post-message",
-    //info: "post-author",
-    //light: "post-content",
-}
+const availableColors = ["primary", "secondary", "success", "danger", "warning", "info", "light", "dark"];
 
 interface ControlsContextInterface {
-    selectedLabel: string,
-    setSelectedLabel: React.Dispatch<React.SetStateAction<string>>,
+    selectedElementType: ElementType | undefined,
+    setSelectedElementType: React.Dispatch<React.SetStateAction<ElementType | undefined>>,
     unrollAll: boolean,
-    setUnrollAll: React.Dispatch<React.SetStateAction<boolean>>
+    setUnrollAll: React.Dispatch<React.SetStateAction<boolean>>,
+    elementTypeColors: {[key: string]: string},
+    setElementTypeColors: React.Dispatch<React.SetStateAction<{[key: string]: string}>>,
 }
 
 // create context for controls
 export const ControlsContext = React.createContext<ControlsContextInterface>({
-    selectedLabel: "warning",
-    setSelectedLabel: () => {},
+    selectedElementType: undefined,
+    setSelectedElementType: () => {},
     unrollAll: false,
     setUnrollAll: () => {},
+    elementTypeColors: {},
+    setElementTypeColors: () => {},
 });
 
 interface TemplatesContextInterface {
@@ -55,19 +51,19 @@ export const TemplatesContext = React.createContext<TemplatesContextInterface>({
 
 
 function Templater() {
-
-    // load file /workspaces/webpage_categorization/data/bungee54-forums/bungee54-forums/2014-10-20/viewtopic.php_pid=1108 into DOM object
     const [openFileSelector, { filesContent, loading, errors, plainFiles, clear }] = useFilePicker({
         multiple: false,
         readAs: 'Text',
     });
-    // document will be an instance of HTMLDocument
     const [doc, setDoc] = useState<Document>(); 
-    const [selectedLabel, setSelectedLabel] = useState<string>("warning");
+    // const [selectedLabel, setSelectedLabel] = useState<string>("warning");
+    const [selectedElementType, setSelectedElementType] = useState<ElementType>();
     const [unrollAll, setUnrollAll] =  useState<boolean>(false);
     const [createTemplate, setCreateTemplate] = useState<boolean>(false);
     const [elements, setElements] = useState<Element[]>([]);
+    const [elementTypes, setElementTypes] = useState<ElementType[]>([]);
     const [template, setTemplate] = useState<Template>();
+    const [elementTypeColors, setElementTypeColors] = useState<{[key: string]: string}>({});
     const { server_ip, server_port, server_api } = React.useContext(AppContext);
     const addElementToTemplate = (element: Element) => {
         console.log("adding template -- top of function");
@@ -76,20 +72,43 @@ function Templater() {
         console.log(elements);
         console.log("adding template -- bottom of function");
     }
-    // use context to pass selectedLabel to child components
+    // fetch element_types from server
+    useEffect(() => {
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/element_types` ).then(response => {
+            if (response.status === 200) {
+                return response.json();
+            }
+        }).then(data => {
+            let els: ElementType[] = JSON.parse(data);
+            setElementTypes(els);
+        }).catch(error => {
+            console.log(error);
+        });
+    }, []);
 
+    useEffect(() => {
+        // create color mapping for all element types (multiple element types can have same color)
+        let tagTocolorMapping: {[key: string]: string} = {};
+        for (let i = 0; i < elementTypes.length; i++) {
+            let color = availableColors[i % availableColors.length];
+            if (tagTocolorMapping[elementTypes[i].tag] === undefined) {
+                tagTocolorMapping[elementTypes[i].tag] = color;
+            }
+        }
+        console.log(tagTocolorMapping);
+        setElementTypeColors(tagTocolorMapping);
+    }, [elementTypes]);
+
+    useEffect(() => {
+        console.log("selectedElementType changed");
+        console.log(selectedElementType);
+    }, [selectedElementType]);
+
+    // use context to pass selectedLabel to child components
     useEffect(() => {
         if (filesContent.length > 0) {
           const parser = new DOMParser();
           let document = parser.parseFromString(filesContent[0].content, 'text/html');
-        //   const elements = document.querySelectorAll('meta, script, style, link, head');
-        //   elements.forEach(element => element.remove());
-        //   const textNodes = document.querySelectorAll('text');
-        //   textNodes.forEach(textNode => {
-        //     if (textNode.textContent && !textNode.textContent.trim()) {
-        //       textNode.remove();
-        //     }
-        //   });
           setDoc(document);
         }
       }, [filesContent]);
@@ -100,7 +119,7 @@ function Templater() {
         let index = elements.length - 1;
         // get last template
         let lastTemplate = elements[index];
-        if (lastTemplate.type === "none") {
+        if (lastTemplate.type === undefined) {
             // if last template is of type none, remove it
             elements.pop();
         }
@@ -110,7 +129,7 @@ function Templater() {
     function sendTemplate() {
         console.log("Sending template to server");
         console.log(template);
-        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/manager`, {
+        fetch(`http://${server_ip}:${server_port}${server_api}/webcat_templates/templates`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -135,7 +154,7 @@ function Templater() {
 
       return (
         <TemplatesContext.Provider value={{createTemplate, setCreateTemplate, elements, addElement: addElementToTemplate}}>
-            <ControlsContext.Provider value={{selectedLabel, setSelectedLabel, unrollAll, setUnrollAll}}>
+            <ControlsContext.Provider value={{selectedElementType, setSelectedElementType, unrollAll, setUnrollAll, elementTypeColors, setElementTypeColors}}>
                 <h3 className='mt-3 text-light'>Template Maker</h3>
                 <Button onClick={openFileSelector} className="mt-3 w-25">Select File</Button>
                 <Stack className="mt-3" direction="horizontal" gap={3}>
@@ -180,20 +199,18 @@ function Templater() {
                 {/* Create 5 labels which can be selected (they behave like checkbox) in primary, warning etc. colors. */}
 
                 <Row className='mt-0'>
-                    {
-                        ['primary', 'secondary', 'success'].map((variant, idx) => (
-                        <Col key={'button-wrap-col-' + idx.toString()}>
-                            {
-                            (selectedLabel === variant) ? 
-                                    <Button key={'button-type-' + idx.toString()} variant={variant} onClick={() => setSelectedLabel(variant)} 
-                                            className="mt-3" style={{width: "10vw"}}>{colorToSectionMapping[variant]}</Button>
-                                :
-                                    <Button key={'button-type-' + idx.toString()} variant={variant} onClick={() => setSelectedLabel(variant)} 
-                                            className="mt-3 text-light" style={{width: "10vw", background: 'none'}}>{colorToSectionMapping[variant]}</Button>
-                                
-                            }
-
-                        </Col>
+                    { elementTypes && elementTypes.length > 0 &&
+                        elementTypes.map((type, idx) => (
+                            <Col key={'button-wrap-col-' + idx.toString()}>
+                                {
+                                (selectedElementType === type) ?
+                                        <Button key={'button-type-' + idx} variant={elementTypeColors[selectedElementType.tag]} onClick={() => setSelectedElementType(type)}
+                                                className="mt-3" style={{width: "10vw"}}>{type.name}</Button>
+                                    :
+                                        <Button key={'button-type-' + idx} variant={elementTypeColors[type.tag]} onClick={() => setSelectedElementType(type)}
+                                                className="mt-3 text-light" style={{width: "10vw", background: 'none'}}>{type.name}</Button>
+                                }
+                            </Col>
                         ))
                     }
                     {/* Create "Unroll all" checkbox */}
@@ -224,7 +241,7 @@ function Templater() {
                         <ul>
                             {template.elements.map((element, idx) => {
                                 {/* array of string into one string with , separator */}
-                                return <li key={idx.toString()}>{element.type} - {element.tag} - {element.parent_tag} - {element.grandparent_tag} - {element.depth}</li>
+                                return <li key={idx.toString()}>{element.type.tag} ({element.type.analysis_flag ? 'true' : 'false'}) - {element.tag} - {element.parent_tag} - {element.grandparent_tag} - {element.depth}</li>
                             })}
 
                         </ul>

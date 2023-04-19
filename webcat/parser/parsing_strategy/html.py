@@ -29,9 +29,16 @@ class TemplatesStrategy(ParsingStrategy):
     """
     def __init__(self, templates) -> None:
         super().__init__()
-        self.segment_types = ['post-message', 'post-header', 'post-author']
-        self.ids_to_types = {k+1: v for k, v in enumerate(self.segment_types)}
         self.templates = templates
+        # iterate all templates and get all segment types
+        self.segment_types = []
+        for template in templates:
+            for element in template['elements']:
+                if element['type']['tag'] not in self.segment_types:
+                    self.segment_types.append((element['type']['tag'], element['type']['id']))
+        
+        self.ids_to_types = {k[1]: k[0] for k in self.segment_types}
+        self.segment_types = [k[0] for k in self.segment_types]
 
     def calculate_element_depth(self, element):
         """
@@ -115,7 +122,7 @@ class TemplatesStrategy(ParsingStrategy):
         
         message_elements = segments['post-message']
         author_elements = segments['post-author']
-        header_elements = segments['post-header']
+        header_elements = segments['post-title']
         MD_text = ""
         content_objects = []
 
