@@ -18,6 +18,6 @@ RUN pip install flask-restful
 RUN pip install flask-cors
 RUN pip install flask-sqlalchemy
 RUN pip install psycopg2-binary
+RUN pip install debugpy
 
-EXPOSE 5001
 

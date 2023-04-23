@@ -59,9 +59,9 @@ class ChatGPTTemplateEngine(TemplateEngine):
         # self.PROMPT_START = "Analyze the text I give you and output only a JSON array with the found segments \"post-header\", \"post-author\" and \"post-message\". I need you to segment this raw text extracted from HTML of a forum. Each newline character delimiters a logical section of a DOM tree. The value of the segment should be the exact matched text. Try to extract at least 3 posts. The input is:\n\n"
         self.PROMPT_START = "I want you to act as a data extraction tool and extract post titles, post authors, and post messages from raw text extracted from HTML code of a forum website. The raw text is separated by newline characters and the desired output is a JSON array of objects in the format [{\"post-title\": \"some title\", \"post-author\": \"some author\", \"post-message\": \"some message\"}]. Your task is to segment the raw text and extract the required information from each segment. Remember that each segment contains only one part of the required information. The input is:\n\n"
         self.SYSTEM_PROMPT = "You are a server for analyzing text data, responding in JSON array format according to instructions."
-        self.segment_types = ["post-header", "post-author", "post-message"]
+        self.segment_types = ["post-title", "post-author", "post-message"]
         self.most_likely_tags = {
-            "post-header": ["h1", "h2", "h3", "h4", "h5", "h6", "div", "span"],
+            "post-title": ["h1", "h2", "h3", "h4", "h5", "h6", "div", "span"],
             "post-author": ["div", "a"],
             "post-message": ["div", "p"]
         }
@@ -251,6 +251,9 @@ class ChatGPTTemplateEngine(TemplateEngine):
             for segment in segments:
                 if segment_type in segment:
                     text_to_find = segment[segment_type]
+                    if text_to_find is None:
+                        continue
+
                     text_to_find = text_to_find.split("\n")[0]
                     if text_to_find == "":
                         continue
@@ -386,7 +389,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
             return None, (output, prompt, total_tokens)
 
         # replace keys "post-title" with "post-header"
-        segments = [{k.replace("post-title", "post-header"): v for k, v in segment.items()} for segment in segments]
+        # segments = [{k.replace("post-title", "post-header"): v for k, v in segment.items()} for segment in segments]
         candidates = self.analyze_segments(segments, soup)
         elements = self.determine_template_elements(candidates, soup)
 
@@ -402,22 +405,22 @@ class ChatGPTTemplateEngine(TemplateEngine):
         if all(len(el) == len(elements[self.segment_types[0]]) for el in elements.values()):
             perfect_match = True
 
-        presumed_header = False
+        presumed_title = False
         if not perfect_match:
             # headers can often be screwed, because messages can be just reactions
             if len(elements["post-message"]) == len(elements["post-author"]):
                 # presume that the longest element is the header common to all messages
-                longest_el = max(elements["post-header"], key=lambda x: len(x.text))
-                elements["post-header"] = [longest_el for _ in range(len(elements["post-message"]))]
-                presumed_header = True
+                longest_el = max(elements["post-title"], key=lambda x: len(x.text))
+                elements["post-title"] = [longest_el for _ in range(len(elements["post-message"]))]
+                presumed_title = True
 
 
         template_proposal = {}
         # template = {}
         contents = {k: [el.text for el in v] for k, v in elements.items()}
         # if we presumed the header, then append (presumed) to the header
-        if presumed_header:
-            contents["post-header"] = [el + " (presumed)" for el in contents["post-header"]]
+        if presumed_title:
+            contents["post-title"] = [el + " (presumed)" for el in contents["post-title"]]
 
         obj_elements = []
         for type, els in elements.items():

@@ -43,7 +43,6 @@ class WebCatInteractive(Resource):
         if not valid:
             return {'error': msg}, 400
 
-        g.occupation = True
         # get models
         models = args['models']
         models = json.loads(models)
@@ -55,8 +54,4 @@ class WebCatInteractive(Resource):
         result = pipeline.process_raw_text(args['input'],**{'hypothesis_template': args['hypothesis_template'], 
                                                         'labels': args['labels'],})
 
-        # result = self.worker.process_raw_text(args['input'], 
-        #                                             **{'hypothesis_template': args['hypothesis_template'], 
-        #                                                 'labels': args['labels'],})
-        g.occupation = False
         return result, 200

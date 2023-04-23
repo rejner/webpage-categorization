@@ -5,15 +5,26 @@ from webcat.database import db
 from webcat.models_extension import *
 import logging
 from webcat.template_engine import list_engines
+import requests
 
 class WebCatTemplates(Resource):
     def __init__(self):
         super().__init__()
- 
+    
+    def search_for_element_type(self, tag):
+        logging.info(f"Searching for element type with tag {tag}")
+        el_type = db.session.query(ElementType).filter(ElementType.tag == tag).first()
+        logging.info(f"Found element type: {el_type}")
+        if el_type is None:
+            return None
+        return el_type.json_serialize()
+
     def create_template(self, data):
         newTemplate = Template(data['creation_date'], data['origin_file'])
         newElements = []
         for element in data['elements']:
+            if isinstance(element['type'], str):
+                element['type'] = self.search_for_element_type(element['type'])
             newElements.append(Element(element['tag'], element['type']['id'], element['parent_tag'], element['grandparent_tag'], element['depth']))
         newTemplate.elements = newElements
 
@@ -34,6 +45,7 @@ class WebCatTemplates(Resource):
         try:
             # get template object from request
             data = request.get_json()
+            logging.info(f"POST request received: {data}")
             return self.create_template(data['template'])
 
         except Exception as e:

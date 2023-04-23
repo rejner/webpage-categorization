@@ -7,7 +7,7 @@ services:
     ports:
       - '3000:3000'
     depends_on:
-      - webcat-server
+      - webcat-api
     environment:
       - REACT_APP_API_URL=http://webcat-server:8080
     volumes:
@@ -19,8 +19,8 @@ services:
         cd /workspace/webcat_client
         npm start
   
-  webcat-server:
-    image: webcat/server-gpu
+  webcat-api:
+    image: webcat/api
     restart: always
     ports:
       - '5000:5000'
@@ -29,14 +29,74 @@ services:
     volumes:
       - "${LOCAL_PATH}/data:/workspace/data"
       - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_api:/workspace/webcat_api"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_api/run.py
+
+  webcat-scheduler:
+    image: webcat/scheduler
+    restart: always
+    ports:
+      - '5001:5001'
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_scheduler:/workspace/webcat_scheduler"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_scheduler/run.py
+
+  webcat-templates:
+    image: webcat/templates
+    restart: always
+    ports:
+      - '5002:5002'
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_templates:/workspace/webcat_templates"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_templates/run.py
+
+  webcat-worker:
+    image: webcat/worker-gpu
+    restart: always
+    ports:
+      - '5003:5003'
+    environment:
+      - PORT=5003
+      - HOST=webcat-worker
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_worker:/workspace/webcat_worker"
     command:
       - /bin/sh
       - "-c"
       - |
         cd /workspace
         python3 webcat/model_repository/download.py
-        python3 webcat/run_api.py
-      # python3 /workspace/webcat/wait.py
+        python3 webcat_worker/run.py
         
     deploy:
       resources:

@@ -21,7 +21,7 @@ interface TemplateProposal {
     contents: {
         'post-author': string[],
         'post-message': string[],
-        'post-header': string[],
+        'post-title': string[],
     }
 
 }
@@ -215,7 +215,7 @@ function TemplaterAuto() {
                 </div>
                 <div>
                     {/* Print counts of each conten */}
-                    <h6>{'# Of Headers:'}: {templateProposal.contents['post-header'].length}</h6>
+                    <h6>{'# Of Titles:'}: {templateProposal.contents['post-title'].length}</h6>
                     <h6>{'# Of Authors:'}: {templateProposal.contents['post-author'].length}</h6>
                     <h6>{'# Of Messages'}: {templateProposal.contents['post-message'].length}</h6>
                     <h6> Perfect Match: {templateProposal.perfect_match ? 'True' : 'False'}</h6>
@@ -230,10 +230,10 @@ function TemplaterAuto() {
             <div className="w-75">
                 <h3>Template Contents</h3>
                 <div className="w-100">
-                    <h4>{'post-header'}</h4>
+                    <h4>{'post-title'}</h4>
                     {
-                        templateProposal.contents['post-header'].map((header, index) => {
-                            return <p key={index}> <b>#{index}:</b> {header}</p>
+                        templateProposal.contents['post-title'].map((title, index) => {
+                            return <p key={index}> <b>#{index}:</b> {title}</p>
                         })
                     }
                     <h4>{'post-author'}</h4>

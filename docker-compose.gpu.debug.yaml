@@ -24,6 +24,7 @@ services:
     restart: always
     ports:
       - '5000:5000'
+      - '5677:5677'
     depends_on:
       - postgres
     volumes:
@@ -35,13 +36,14 @@ services:
       - "-c"
       - |
         cd /workspace
-        python3 webcat_api/run_api.py
+        python3 -m debugpy --listen 0.0.0.0:5677 webcat_api/run_debug.py
 
   webcat-scheduler:
     image: webcat/scheduler
     restart: always
     ports:
       - '5001:5001'
+      - '5679:5679'
     depends_on:
       - postgres
       - webcat-api
@@ -54,13 +56,14 @@ services:
       - "-c"
       - |
         cd /workspace
-        python3 webcat_scheduler/run_api.py
-
+        python3 -m debugpy --listen 0.0.0.0:5679 webcat_scheduler/run_debug.py
+        
   webcat-templates:
     image: webcat/templates
     restart: always
     ports:
       - '5002:5002'
+      - '5678:5678'
     depends_on:
       - postgres
       - webcat-api
@@ -73,13 +76,14 @@ services:
       - "-c"
       - |
         cd /workspace
-        python3 webcat_templates/run_api.py
+        python3 -m debugpy --listen 0.0.0.0:5678 webcat_templates/run_debug.py
 
   webcat-worker:
-    image: webcat/server-gpu
+    image: webcat/worker-gpu
     restart: always
     ports:
       - '5003:5003'
+      - '5680:5680'
     environment:
       - PORT=5003
       - HOST=webcat-worker
@@ -96,8 +100,7 @@ services:
       - |
         cd /workspace
         python3 webcat/model_repository/download.py
-        python3 webcat_worker/run_api.py
-      # python3 /workspace/webcat/wait.py
+        python3 -m debugpy --listen 0.0.0.0:5680 webcat_worker/run_debug.py
         
     deploy:
       resources:

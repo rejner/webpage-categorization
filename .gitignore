@@ -19,3 +19,4 @@ webcat/model_repository/*
 .env
 models/newsgroup_dataset
 webcat_old
+.old

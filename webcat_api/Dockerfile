@@ -25,6 +25,6 @@ RUN pip install openai==0.27.0
 RUN pip install beautifulsoup4
 RUN pip install sentencepiece
 RUN pip install nltk
+RUN pip install debugpy
 
-EXPOSE 5000
 
