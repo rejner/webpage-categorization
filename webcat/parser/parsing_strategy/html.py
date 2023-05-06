@@ -126,21 +126,30 @@ class TemplatesStrategy(ParsingStrategy):
         MD_text = ""
         content_objects = []
 
-        content_len = max(len(message_elements), len(author_elements), len(header_elements))
-        for elements in [message_elements, author_elements, header_elements]:
-            # length of all elements must be the same, or 0 (if no elements were found)
-            assert len(elements) == content_len or len(elements) == 0
+        # content_len = max(len(message_elements), len(author_elements), len(header_elements))
+        # for elements in [message_elements, author_elements, header_elements]:
+        #     # length of all elements must be the same, or 0 (if no elements were found)
+        #     assert len(elements) == content_len or len(elements) == 0
 
-        for m_el, a_el, h_el in zip(message_elements, author_elements, header_elements):
+
+        if len(author_elements) != len(header_elements) and len(header_elements) == len(message_elements):
+            # if the number of authors and headers does not match, but the number of headers and messages does, swap them
+            author_elements = ["" for _ in range(len(message_elements))]
+            
+        
+
+        for m_el, a_el, t_el in zip(message_elements, author_elements, header_elements):
             # messages can be split because they contain too much text
             strings = [s for s in m_el.strings if s.strip() != '']
             m_text = TemplatesStrategy.process_text(" ".join(strings).strip())
             # only clear authors and headers, because they will not be analyzed by the model
-            a_text = self.clear_text(a_el.text, remove_urls=False, remove_emails=False)
-            h_text = self.clear_text(h_el.text, remove_urls=False, remove_emails=False)
+            a_text = a_el
+            if not isinstance(a_el, str):
+                a_text = self.clear_text(a_el.text, remove_urls=False, remove_emails=False)
+            t_text = self.clear_text(t_el.text, remove_urls=False, remove_emails=False)
       
             MD_text = ""
-            MD_text += "## " + h_text + "\n"
+            MD_text += "## " + t_text + "\n"
             MD_text += "### " + a_text + "\n"
             if isinstance(m_text, list):
                 for t in  m_text:
@@ -158,12 +167,12 @@ class TemplatesStrategy(ParsingStrategy):
             } for i, text in enumerate(m_text)]
             author_attribute = {
                 "type": "post-author",
-                "content": h_text,
+                "content": a_text,
                 "tag": 0
             }
             title_attribute = {
                 "type": "post-title",
-                "content": a_text,
+                "content": t_text,
                 "tag": 0
             }
             content_objects.append({

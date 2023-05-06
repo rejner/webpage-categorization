@@ -18,3 +18,12 @@ Automatic webpage content categorisation and extraction
 
 
 # .env files in the root of the project and in webcat directory have to be set. (Modify .env.example files and replace them wiht your config)
+
+
+# Template Creation Testing Files:
+
+ - /workspace/data/examples/greayroad-forums/index.php_topic=8 (works)
+ - /workspace/data/examples/bungee54-forums/viewtopic.php_pid=854 
+ - /workspace/data/examples/bungee54-forums/viewtopic.php_pid=853
+ - /workspace/data/examples/bungee54-forums/viewtopic.php_pid=858
+ - /workspace/data/examples/utopia-forums/viewtopic.php_pid=12563

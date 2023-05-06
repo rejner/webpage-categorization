@@ -24,9 +24,9 @@ class WebCatDataProvider(Resource):
         self.parser.add_argument('categories', type=str, action='append')
         self.parser.add_argument('cat_threshold', type=float, default=0.0)
         self.parser.add_argument('entity_types', type=str, action='append')
-        self.parser.add_argument('ent_threshold', type=float, default=0.0)
-        self.parser.add_argument('entity_values', type=str, action='append')
-        self.parser.add_argument('file_names', type=str, action='append')
+        # self.parser.add_argument('ent_threshold', type=float, default=0.0)
+        # self.parser.add_argument('entity_values', type=str, action='append')
+        # self.parser.add_argument('file_names', type=str, action='append')
         self.parser.add_argument('file_paths', type=str, action='append')
         self.parser.add_argument('authors', type=str, action='append')
         self.file_cache = {}
@@ -109,6 +109,7 @@ class WebCatDataProvider(Resource):
         filtered_data = self.process_request(args)
         end_2 = time.time()
         print("Time for process_request: ", end_2 - start_2)
+        #Aprint([data.json_serialize() for data in filtered_data])
         return [data.json_serialize() for data in filtered_data]
 
     # delete will be sent as a delete request with id in the url

@@ -8,12 +8,15 @@ from .exceptions import MissingOpenAIKeyError
 import re
 import logging
 
-class ChatGPTTemplateEngine(TemplateEngine):
+class ChatGPTTemplateEngine_v2(TemplateEngine):
     """
         Uses OpenAI's ChatGPT API to generate templates from a given file.
 
         The website is pre-processed using the following steps:
         1. Extract all text from the website (using BeautifulSoup)
+         - Keep the corresponding DOM node for each text line.
+         - Must be done in a way that preserves the order of the text lines,
+           maybe some kind of mapping between the text and the DOM node.
         2. Each line of text is cut to a maximum length of MAX_LINE_LENGTH
          - The hypothesis is that the headers are usually short and the message is usually long, but
            to capture context for segmentation, we don't need full messages.
@@ -21,15 +24,9 @@ class ChatGPTTemplateEngine(TemplateEngine):
          - This is also fine, because it is sufficient to capture just a few posts.
         4. The text is sent to the OpenAI API and parsed by ChatGPT model.
          - The model is instructed to output a JSON array with the found segments "post-header", "post-author" and "post-message".
-        5. The JSON array is parsed and the segments are extracted.
-        6. The segments are grouped by type and the most common segment is selected as the template.
-         - For each identified segment, candidate elements are extracted based on text content of the segment
-           parsed by the model.
-         - The most common and repeated element is selected as the template for each segment.
-            - The candidate element must be present in all indentified segments of the same type.
-            - IE: If the model identified 3 segments of type "post-header", the template must be present in all 3 segments.
-         - We store node tag, its parent tag and its parent's parent tag as the template, together
-           with the node depth. These information are sufficient to identify the node in the HTML. 
+        5. The JSON array is parsed and the content types are extracted.
+        6. Find the DOM node that contains the text for each segment.
+         - These are the template nodes.
         7. The template is returned.
 
         Example output of the model (3 posts/segments):
@@ -53,7 +50,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
     """
     def __init__(self) -> None:
         super().__init__()
-        self.MAX_INPUT_LENGTH = 64
+        self.MAX_INPUT_LENGTH = 128
         self.MAX_LINE_LENGTH = 64
         self.START_OFFSET = 0
         # self.PROMPT_START = "Analyze the text I give you and output only a JSON array with the found segments \"post-header\", \"post-author\" and \"post-message\". I need you to segment this raw text extracted from HTML of a forum. Each newline character delimiters a logical section of a DOM tree. The value of the segment should be the exact matched text. Try to extract at least 3 posts. The input is:\n\n"
@@ -62,7 +59,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
         self.segment_types = ["post-title", "post-author", "post-message"]
         self.most_likely_tags = {
             "post-title": ["h1", "h2", "h3", "h4", "h5", "h6", "div", "span"],
-            "post-author": ["div", "a"],
+            "post-author": ["div", "a", "strong"],
             "post-message": ["div", "p"]
         }
     
@@ -72,7 +69,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
 
     @property
     def name(self):
-        return "ChatGPT Template Engine"
+        return "ChatGPT Template Engine v2"
     
     @property
     def requiresKey(self):
@@ -115,7 +112,9 @@ class ChatGPTTemplateEngine(TemplateEngine):
                 "content": prompt
             }
         ]
-
+        #OUTPUT_BUNGE = '[{"post-title": "Future of Bungee Shop and all Black market sites", "post-author": "Reximusmaximus", "post-message": "Just Curious. I am an avid Silk road supporter, but I strongly l"}, {"post-title": "Re: Future of Bungee Shop and all Black market sites", "post-author": "Mm31qIPrZ", "post-message": "I believe their current plan is to keep up their semi-private sh"}, {"post-title": "Re: Future of Bungee Shop and all Black market sites", "post-author": "Reximusmaximus", "post-message": "I mean ill probably make an account, but after the fall of SR 1."}]'
+        OUTPUT_UTOPIA = '[{"post-title": "Warning from DRP2 (Silk Road 2.0): Do not spam our forums!", "post-author": "SorryMario", "post-message": "BTW, 405 posts is nothing. frim could do that by his little auti\\nIt probably is him in all honesty haha! Congrats on Modship, jus"}, {"post-title": "Warning from DRP2 (Silk Road 2.0): Do not spam our forums!", "post-author": "ChingChingChingChing", "post-message": "Fuck SR2 and and admin there (that\'s you, scout, you little fuck\\nIf they \\"start returning fire\\" that\'s pretty much a declaration \\nI see this as desperation. Their own little scam of a marketplac\\nsticksNshits wrote:\\nI was unaware that DPR2 was even active at this point?\\nLol, the mods are spreading some bullshit that DPR2 has returned"}]'
+        return OUTPUT_UTOPIA, prompt, 0
         # response = RESPONSE_TOTRUGA_2
         # response = RESPONSE
         try:
@@ -141,7 +140,6 @@ class ChatGPTTemplateEngine(TemplateEngine):
         return output, prompt, total_tokens
         
         # output = "Here is the output in the required format:\n\n[{\"post-title\": \"Does anyone need samples? I'm an old vendor from S\", \"post-author\": \"SupremeSmoke\", \"post-message\": \"I used to be an avid member of Silk road 1 but after losing ever\"}]"
-
 
     def verify_output(self, output:str):
        
@@ -190,54 +188,63 @@ class ChatGPTTemplateEngine(TemplateEngine):
 
         return output
 
-
     def parse_html(self, html_file):
         """
-            Parses the HTML and returns text.
+            Parses the HTML and returns text for the ChatGPT to anotate.
+            Also keep mapping of the text to the original HTML nodes.
         """
-        with  open(html_file, 'r') as f:
+        with open(html_file, 'r') as f:
             html = f.read()
         soup = bs4.BeautifulSoup(html, "html.parser")
         # remove all scripts, head, style, meta, link, title, etc.
         for tag in soup.find_all(["script", "head", "style", "meta", "link", "title", "noscript", "iframe", "svg", "path", "img", "button", "input", "form", "footer", "header", "nav", "section"]):
             tag.decompose()
 
-        text = soup.get_text()
-        # split text into lines by newlines and tabs
-        text = re.split(r"\n|\t", text)
+        # get all node containing text and keep position
+        text_nodes = []
+        for i, node in enumerate(soup.find_all(text=True)):
+            if node.parent.name in ["style", "script", "head", "title", "meta", "[document]", "html"]:
+                continue
+            text_nodes.append((i, node))
+
         # keep at maximum one empty line between lines
         # simple automata
         last_line_empty = False
-        for i in range(len(text)):
-            if text[i] == " ":
-                text[i] = ""
-            if text[i] == "":
+        for i in range(len(text_nodes)):
+            if text_nodes[i][1] == "" or text_nodes[i][1] == " " or text_nodes[i][1] == "\n" or text_nodes[i][1] == "\t":
                 if last_line_empty:
-                    text[i] = None
+                    text_nodes[i] = None
                 else:
                     last_line_empty = True
             else:
                 last_line_empty = False
-        text = [x for x in text if x is not None]
+
+        text_nodes = [x for x in text_nodes if x is not None]
+        # text_id_to_node = {i: node for i, node in text_nodes}
+        logging.info("Found {} text nodes.".format(len(text_nodes)))
 
         # it helps to start at a later point in the text to eliminate navigation and other stuff
-        if self.START_OFFSET > 0 and len(text)*2 > self.START_OFFSET:
-            text = text[self.START_OFFSET:]
+        if self.START_OFFSET > 0 and len(text_nodes)*2 > self.START_OFFSET:
+            text_nodes = text_nodes[self.START_OFFSET:]
+        
+        if len(text_nodes) > self.MAX_INPUT_LENGTH:
+            text_nodes = text_nodes[:self.MAX_INPUT_LENGTH]
 
+        # keep only text
+        texts = [str(x[1]) for x in text_nodes]
         # iterate through text and count the number of characters
         # if the number of characters exceeds the max input length, then cut the text
-        for i in range(len(text)):
-            if len(text[i]) > self.MAX_LINE_LENGTH:
-                text[i] = text[i][:self.MAX_LINE_LENGTH]
-        
-        if len(text) > self.MAX_INPUT_LENGTH:
-            text = text[:self.MAX_INPUT_LENGTH]
+        for i in range(len(texts)):
+            if len(texts[i]) > self.MAX_LINE_LENGTH:
+                texts[i] = texts[i][:self.MAX_LINE_LENGTH]
 
+        self.text_nodes = text_nodes
+        self.texts = texts
         # join text back together
-        text = "\n".join(text)
+        text = "\n".join(texts)
         # if len(text) > self.MAX_INPUT_LENGTH:
         #     text = text[:self.MAX_INPUT_LENGTH]
-        return text, soup
+        return text, soup, text_nodes
         
     def calculate_element_depth(self, element):
         """
@@ -267,112 +274,57 @@ class ChatGPTTemplateEngine(TemplateEngine):
                     if text_to_find == "":
                         continue
                     
-                    # split text into tri-grams and find the corresponding HTML elements
-                    text_to_find = text_to_find.split(" ")
-                    # if the number of words is even, then use bi-grams, otherwise use tri-grams
-                    N_GRAM_SIZE = 2 if len(text_to_find) % 2 == 0 else 3
-                    text_to_find = [text_to_find[i:i+N_GRAM_SIZE] for i in range(0, len(text_to_find), N_GRAM_SIZE)]
-                    text_to_find = [" ".join(x) for x in text_to_find]
-                    text_to_find = "|".join(text_to_find)
-                    # compile regex pattern for tri-grams
-                    pattern = re.compile(text_to_find)
-                    elements = [el.parent for el in soup.findAll(text=pattern)]
-                    # remove all elements with [document] name
-                    elements = [el for el in elements if el.name != "[document]"]
-                    # elements = [el for el in elements if re.match(pattern, el.get_text())]
-                    if elements:
-                        candidate_elements[segment_type].append(elements)
-        
-        # construct a list of candidate elements for each segment from special objects
-        candidates = {k: [] for k in self.segment_types}
-        for type, elements in candidate_elements.items():
-            for els in elements:
-                tmp = []
-                for el in els:
-                    try:
-                        depth = self.calculate_element_depth(el)
-                        # try to search for elements which have the same parent and grandparent and depth
-                        # sibling_elements = list(filter(lambda x: el.name != x.name and x.parent.name == el.parent.name and x.parent.parent.name == el.parent.parent.name and depth == self.calculate_element_depth(x), els))
-                        # if len(sibling_elements) > 0:
-                        #     # create a new element which is the parent of all sibling elements
-                        #     new_el = TemplateElements(
-                        #         tag=el.parent.name,
-                        #         parent_tag=el.parent.parent.name,
-                        #         grandparent_tag=el.parent.parent.parent.name,
-                        #         depth=depth-1,
-                        #     )
-                        #     tmp.append(new_el)
-                    
-                        new_el = TemplateElements(
-                                tag=el.name,
-                                parent_tag=el.parent.name,
-                                grandparent_tag=el.parent.parent.name,
-                                depth=depth,
-                        )
-                        tmp.append(new_el)
-                    except Exception as e:
-                        print(e)
-                        print("Error while processing element: {el}".format(el=el))
-                              
-                candidates[type].append(tmp)
+                    if segment_type == "post-message" or segment_type == "post-title":
+                        # split text into tri-grams and find the corresponding HTML elements
+                        text_to_find = text_to_find.split(" ")
+                        # if the number of words is even, then use bi-grams, otherwise use tri-grams
+                        N_GRAM_SIZE = 2 if len(text_to_find) % 2 == 0 else 3
+                        text_to_find = [text_to_find[i:i+N_GRAM_SIZE] for i in range(0, len(text_to_find), N_GRAM_SIZE)]
+                        text_to_find = [re.sub(r"[^a-zA-Z0-9\s]", "", " ".join(x)) for x in text_to_find]
+                        text_to_find = "|".join(text_to_find)
+                        # escape special characters
+                        # text_to_find = re.escape(text_to_find)
+                        # remove special characters, including ()
+                        
 
-        # merge all sub-lists candidate elements into one list
-        candidates = {k: [item for sublist in v for item in sublist] for k, v in candidates.items()}
-
-        # count the number of occurences of each element
-        candidate_counts = {k: [] for k in self.segment_types}
-        for type, els in candidates.items():
-            # for el in els:
-            candidate_counts[type].append(Counter(els))
-                
-        # get intersection of all candidate elements from each segment
-        # (if there are multiple segments for a given type, the candidate elements must be in all segments)
-        filtered_candidates = {k: [] for k in self.segment_types}
-        # for type, els in candidates.items():
-        #     if len(els) > 0:
-        #         filtered_candidates[type] = list(set.intersection(*map(set, els)))
-        #     else:
-        #         filtered_candidates[type] = []
-        
-        # for each segment take the most common element (can be found in candidate_counts)
-        filtered_candidates = {k: [] for k in self.segment_types}
-        for type, counts in candidate_counts.items():
-            max_count = 0
-            for el, cnt in counts[0].items():
-                if cnt == max_count:
-                    filtered_candidates[type].append(el)
-                if cnt > max_count:
-                    max_count = cnt
-                    filtered_candidates[type] = [el]
-
-        # if some of the segments have more than one candidate element, then we need to filter them
-        # take the most common element
-        for type, els in filtered_candidates.items():
-            if len(els) > 1:
-                # for each element, count the number of occurences in the candidate_counts
-                # take the most common
-                filtered_candidates[type] = els[0]
-                # if elements are in the same depth and parent, then we can create a new element which is the parent of all elements
-                ref_element = els[0]
-                for el in els[1:]:
-                    if ref_element.depth == el.depth and ref_element.parent_tag == el.parent_tag and ref_element.grandparent_tag == el.grandparent_tag:
-                        new_el = TemplateElements(
-                            tag=ref_element.parent_tag,
-                            parent_tag=ref_element.grandparent_tag,
-                            grandparent_tag=None,
-                            depth=ref_element.depth-1,
-                        )
-                        filtered_candidates[type] = new_el
-                        break
-
-
-            
-            # if there is only one candidate element, then we can just take it
-            if len(els) == 1:
-                filtered_candidates[type] = els[0]
-
-            if len(els) == 0:
-                filtered_candidates[type] = None
+                        # prevent unterminated subpattern error
+                        # text_to_find = "(?:" + text_to_find + ")"
+                        # compile regex pattern for tri-grams
+                        try:
+                            pattern = re.compile(text_to_find)
+                        except Exception as e:
+                            print("Could not compile regex pattern for text: {}".format(text_to_find))
+                            continue
+                    for i, node in self.text_nodes:
+                        # find the exact text node (texts must be equal)
+                        if segment_type == "post-message" or segment_type == "post-title":
+                            if pattern.search(node):
+                                element = TemplateElements(
+                                    tag=node.parent.name,
+                                    parent_tag=node.parent.parent.name,
+                                    grandparent_tag=node.parent.parent.parent.name,
+                                    depth=self.calculate_element_depth(node) - 1,
+                                    )
+                                candidate_elements[segment_type].append(element)
+                        else:
+                            if node == text_to_find:
+                                element = TemplateElements(
+                                    tag=node.parent.name,
+                                    parent_tag=node.parent.parent.name,
+                                    grandparent_tag=node.parent.parent.parent.name,
+                                    depth=self.calculate_element_depth(node) - 1,
+                                    )
+                                candidate_elements[segment_type].append(element)
+                        
+        # filter candidates
+        filtered_candidates = {k: None for k in self.segment_types}
+        for type, candidates in candidate_elements.items():
+            # create a set of candidates
+            candidates = set(candidates)
+            # if there are no candidates, then skip
+            if len(candidates) == 0:
+                continue
+            filtered_candidates[type] = list(candidates)
 
         return filtered_candidates
     
@@ -381,50 +333,63 @@ class ChatGPTTemplateEngine(TemplateEngine):
             Determines the template elements from the candidates.
         """
         elements = {k: [] for k in self.segment_types}
-        for type, el in candidates.items():
-            if el is None:
+        for type, els in candidates.items():
+            if els is None:
                 continue
-            tag = el.tag
-            parent_tag = el.parent_tag
-            grandparent_tag = el.grandparent_tag
-            depth = el.depth
 
-            # check if parent has multiple same elements of the current element
-            # if it does, then our template element is the parent (can be the case of multiple paragraphs)
-            parent_els = soup.findAll(parent_tag)
-            parent_els = [el for el in parent_els if el.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth - 1]
-            el_replaced = False
-            for parent_el in parent_els:
-                same_children_cnt = 0
-                for child in parent_el.children:
-                    if child.name == tag and parent_el.parent.name == grandparent_tag:
-                        same_children_cnt += 1
+            # use the template element with the most matches
+            for el in els:
+                tag = el.tag
+                parent_tag = el.parent_tag
+                grandparent_tag = el.grandparent_tag
+                depth = el.depth
 
-                # if there are multiple same children, then the parent is the template element
-                if same_children_cnt > 1:
-                    tag = parent_tag
-                    parent_tag = parent_el.parent.name
-                    grandparent_tag = parent_el.parent.parent.name
-                    depth = depth - 1
-                    el_replaced = True
-                    break
+                # check if parent has multiple same elements of the current element
+                # if it does, then our template element is the parent (can be the case of multiple paragraphs)
+                parent_els = soup.findAll(parent_tag)
+                #test_1 = parent_els[0].parent.name
+                #test_2 = self.calculate_element_depth(parent_els[0])
+                parent_els = [el for el in parent_els if el.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth - 1]
+                el_replaced = False
+                for parent_el in parent_els:
+                    same_children_cnt = 0
+                    for child in parent_el.children:
+                        if child.name == tag and parent_el.parent.name == grandparent_tag:
+                            same_children_cnt += 1
 
-            # find all elements that match the template element
-            els = soup.findAll(tag)
-            if not el_replaced:
-                els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth and el.next != "\n"]
-            else:
-                els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth]
-            elements[type] = els
+                    # if there are multiple same children, then the parent is the template element
+                    if same_children_cnt > 1:
+                        tag = parent_tag
+                        parent_tag = parent_el.parent.name
+                        grandparent_tag = parent_el.parent.parent.name
+                        depth = depth - 1
+                        el_replaced = True
+                        break
+
+                # find all elements that match the template element
+                els = soup.findAll(tag)
+                if not el_replaced:
+                    els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth and el.next != "\n"]
+                else:
+                    els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth]
+                elements[type].append(els) 
         
-        return elements
+        # if there are multiple elements, use the one with the most elements
+        final_elements = {k: None for k in self.segment_types}
+        for type, els_lists in elements.items():
+            for el_list in els_lists:
+                if not final_elements[type]:
+                    final_elements[type] = el_list
+                elif len(el_list) > len(final_elements[type]):
+                    final_elements[type] = el_list
+                
+        return final_elements
     
     def template_from_file(self, file_path):
         """
             Generates a template from a given file.
         """
-        text, soup = self.parse_html(file_path)
-        
+        text, soup, text_nodes = self.parse_html(file_path)
         try:
             output, prompt, total_tokens = self.analyze_text(text)
             output = self.verify_output(output)

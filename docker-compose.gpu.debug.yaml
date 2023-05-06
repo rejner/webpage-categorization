@@ -94,6 +94,7 @@ services:
       - "${LOCAL_PATH}/data:/workspace/data"
       - "${LOCAL_PATH}/webcat:/workspace/webcat"
       - "${LOCAL_PATH}/webcat_worker:/workspace/webcat_worker"
+      - "E:\\data:/workspace/data_2"
     command:
       - /bin/sh
       - "-c"
