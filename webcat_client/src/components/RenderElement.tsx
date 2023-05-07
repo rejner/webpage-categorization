@@ -14,10 +14,14 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
   const [elementType, setElementType] = useState<ElementType | undefined>(undefined);
   const {selectedElementType, setSelectedElementType, unrollAll, setUnrollAll, elementTypeColors, setElementTypeColors} = useContext(ControlsContext);
   const {createTemplate, setCreateTemplate, elements, addElement} = useContext(TemplatesContext);
+  const [xPath, setXPath] = useState('');
+  const [classes, setClasses] = useState("");
 
   useEffect(() => {
-    if (el.textContent)
-        setElementText(el.textContent?.trim());
+    if (el.textContent){
+      setElementText(el.textContent?.trim());
+    }
+    
   }, [el]);
 
   useEffect(() => {
@@ -30,6 +34,8 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
               type: elementType!,
               tag: el.tagName.toLowerCase(),
               id: 0,
+              xPath: xPath,
+              classes: classes,
               parent_tag: el.parentElement?.tagName.toLowerCase() || "",
               grandparent_tag: el.parentElement?.parentElement?.tagName.toLowerCase() || "",
               depth: depth+1,
@@ -47,9 +53,23 @@ export const RenderElement: React.FC<Props> = ({ el, depth }) => {
   const toggleSelected = () => {
     setSelected(!isSelected);
     setElementType(selectedElementType);
-    console.log("weee");
-    console.log(selectedElementType);
-    };
+    // set classes
+    setClasses(el.className);
+    // set the xPath
+    let path = el.tagName.toLowerCase();
+    let parent = el.parentElement;
+    while (parent) {
+      path = parent.tagName.toLowerCase() + '/' + path;
+      parent = parent.parentElement;
+    }
+    path = '/' + path;
+    setXPath(path);
+  };
+
+  // log xpath
+  useEffect(() => {
+      console.log(xPath);
+  }, [xPath]);
   
   function extractTopLevelText(el: HTMLElement) {
     let text = "";

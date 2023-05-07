@@ -10,17 +10,21 @@ class Element(db.Model):
     parent_tag = db.Column(db.String(100))
     grandparent_tag = db.Column(db.String(100))
     depth = db.Column(db.Integer)
+    xPath = db.Column(db.Text)
+    classes = db.Column(db.Text)
 
-    def __init__(self, tag: str, type_id: int, parent_tag: str, grandparent_tag: str, depth: int):
+    def __init__(self, tag: str, type_id: int, parent_tag: str, grandparent_tag: str, depth: int, xPath: str, classes: str):
         self.tag = tag
         self.type_id = type_id
         self.parent_tag = parent_tag
         self.grandparent_tag = grandparent_tag
         self.depth = depth
+        self.xPath = xPath
+        self.classes = classes
         
 
     def __repr__(self):
-        return f"Element(id={self.id}, tag={self.tag}, parent_tag={self.parent_tag}, grandparent_tag={self.grandparent_tag}, depth={self.depth} type_id={self.type_id})"
+        return f"Element(id={self.id}, tag={self.tag}, parent_tag={self.parent_tag}, grandparent_tag={self.grandparent_tag}, depth={self.depth} type_id={self.type_id}, xPath={self.xPath}, classes={self.classes})"
 
     def json_serialize(self):
         return {
@@ -30,5 +34,7 @@ class Element(db.Model):
             'parent_tag': self.parent_tag,
             'grandparent_tag': self.grandparent_tag,
             'depth': self.depth,
-            'type': self.type.json_serialize()
+            'type': self.type.json_serialize(),
+            'xPath': self.xPath,
+            'classes': self.classes
         }

@@ -25,7 +25,7 @@ class WebCatTemplates(Resource):
         for element in data['elements']:
             if isinstance(element['type'], str):
                 element['type'] = self.search_for_element_type(element['type'])
-            newElements.append(Element(element['tag'], element['type']['id'], element['parent_tag'], element['grandparent_tag'], element['depth']))
+            newElements.append(Element(element['tag'], element['type']['id'], element['parent_tag'], element['grandparent_tag'], element['depth'], element['xPath'], element['classes']))
         newTemplate.elements = newElements
 
         db.session.add(newTemplate)

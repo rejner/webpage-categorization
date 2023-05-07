@@ -241,7 +241,7 @@ function Templater() {
                         <ul>
                             {template.elements.map((element, idx) => {
                                 {/* array of string into one string with , separator */}
-                                return <li key={idx.toString()}>{element.type.tag} ({element.type.analysis_flag ? 'true' : 'false'}) - {element.tag} - {element.parent_tag} - {element.grandparent_tag} - {element.depth}</li>
+                                return <li key={idx.toString()}>{element.type.tag} ({element.type.analysis_flag ? 'true' : 'false'}) - {element.xPath} classes: {element.classes}</li>
                             })}
 
                         </ul>

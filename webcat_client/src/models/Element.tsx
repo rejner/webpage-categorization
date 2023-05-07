@@ -6,6 +6,8 @@ export interface Element {
     'parent_tag': string;
     'grandparent_tag': string;
     'depth': number;
+    'xPath': string;
+    'classes': string;
     'type': ElementType;
 }
 

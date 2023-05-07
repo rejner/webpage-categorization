@@ -83,6 +83,8 @@ function TemplateManager() {
                                                     <li>Parent Tag: {element.parent_tag}</li>
                                                     <li>Grandparent Tag: {element.grandparent_tag}</li>
                                                     <li>Depth: {element.depth}</li>
+                                                    <li>XPath: {element.xPath}</li>
+                                                    <li>Classes: {element.classes}</li>
                                                 </ul>
                                             );
                                         })

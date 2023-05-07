@@ -31,4 +31,5 @@ RUN pip install sentencepiece
 RUN pip install protobuf==3.20.0
 RUN pip install datefinder
 RUN pip install debugpy
+RUN pip install lxml
 
