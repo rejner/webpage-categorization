@@ -1,11 +1,12 @@
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from transformers import pipeline
+from transformers import pipeline, ZeroShotClassificationPipeline
 import json
 import datasets
 from transformers.pipelines.pt_utils import KeyDataset
 import time
+import torch
 import tqdm
 import pandas as pd
 from sklearn import metrics
@@ -32,8 +33,7 @@ html_pattern = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
 
 
 model_dir = "webcat/model_repository"
-
-from webcat.nlp.processing.analyzer.models import list_all_models
+from webcat.analyzer.models import list_all_models
 
 
 def load_dataset(path):
@@ -207,7 +207,7 @@ def evaluate_sample(predictions, true_labels):
 def eval_model(model, dataset, categories, hypothesis_template, tag="0"):
     tokenizer = model["tokenizer_class"].from_pretrained(model_dir + "/" + model['model'])
     mod = model["model_class"].from_pretrained(model_dir + "/" + model['model'])
-    pipe = pipeline(model["pipeline"], model=mod, tokenizer=tokenizer, device=0, framework="pt")
+    pipe = pipeline(model["pipeline"], model=mod, tokenizer=tokenizer, device=0, framework="pt", batch_size=1)
 
     # print(
     #     """
@@ -220,8 +220,9 @@ def eval_model(model, dataset, categories, hypothesis_template, tag="0"):
     # )
 
     predictions = []
-    for result in tqdm.tqdm(pipe(KeyDataset(dataset, "text"), categories, multi_label=True, hypothesis_template=hypothesis_template, batch_size=2, truncation=True), total=len(dataset)):
+    for result in tqdm.tqdm(pipe(KeyDataset(dataset, "text"), categories, multi_label=True, hypothesis_template=hypothesis_template), total=len(dataset)):
         predictions.append([label for label, score in zip(result["labels"], result["scores"]) if score > 0.8])
+
 
     # if prediction column already exists, remove it
     if "prediction" in dataset.column_names:
@@ -436,6 +437,31 @@ if __name__ == "__main__":
                     "The text covers the topic of {} extensively.",
                     "The text delves deeply into the topic of {}.",
                     "The example is about {}."]
+    
+    templates = [
+        "The main subject of this text is {}.", "The focus of this writing is on {}.", "The primary topic of discussion in this text is {}.", "This article discusses {}.", "The main idea presented in this text is {}.", "The primary subject matter of this article is {}.", "The subject of this article is {}.", "This text covers the topic of {}.", "The central theme of this article is {}."
+    ]
+
+    templates = [
+        "The text contains information relevant to {}."
+    ]
+
+    templates = [
+        "The text examines the topic of {} in depth.",
+        "The topic of this text is {}.",
+        "The text provides information about {}.",
+        "The text discusses {}.",
+        "The text contains information relevant to {}.",
+        "The text provides insights into {}.",
+        "The text sheds light on {}.",
+        "The text explores {} in detail.",
+        "The text provides a comprehensive analysis of {}.",
+        "The text covers the topic of {} extensively.",
+        "The text delves deeply into the topic of {}.",
+        "The example is about {}.",
+        "The main subject of this text is {}.", "The focus of this writing is on {}.", "The primary topic of discussion in this text is {}.", "This article discusses {}.", "The main idea presented in this text is {}.", "The primary subject matter of this article is {}.", "The subject of this article is {}.", "This text covers the topic of {}.", "The central theme of this article is {}."
+    ]
+
     
     for i, template in enumerate(templates):
         print(f"Template: {template}")

@@ -3,7 +3,7 @@ import os
 import logging
 logging.basicConfig(level=logging.INFO)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from webcat.nlp.models import list_all_models
+from webcat.analyzer.models import list_all_models
 from transformers import pipeline
 
 
@@ -13,6 +13,7 @@ models = list_all_models()
 for model in models:
     # test if model already exists
     if os.path.exists(os.path.join(model_storage, model['model'])):
+        continue
         logging.info(f"Model {model['model']} already exists, skipping download.")
         # try to load model
         try:

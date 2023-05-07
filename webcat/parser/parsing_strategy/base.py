@@ -6,7 +6,9 @@ import datefinder
 
 nltk.download('punkt')
 
-url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+# url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+url_regex = re.compile(r'((?:https?://|ftp://|http://|www\d{0,3}\.)'
+                       r'(?:[^\s/$.?#][^\s]*)?)')
 email_pattern = r'[\w\.-]+@[\w\.-]+'
 datetime_pattern = r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
 html_pattern = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
@@ -99,9 +101,12 @@ class ParsingStrategy(object):
         # remove urls
         # urls = re.findall(url_pattern, text)
         if remove_urls:
-            urls = urlextract.URLExtract().find_urls(text)
+            urls = url_regex.findall(text)
+            print(urls)
+            # urls = urlextract.URLExtract().find_urls(text)
             for url in urls:
                 text = text.replace(url, " [URL] ")
+
         # remove emails
         # emails = re.findall(email_pattern, text)
         if remove_emails:

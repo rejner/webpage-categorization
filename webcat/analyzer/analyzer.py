@@ -43,6 +43,7 @@ class WebCatAnalyzer():
 
     def analyze_content(self, content, **kwargs):
         try:
+            # logging.info(content)
             categories = self.classify(content, **kwargs)
             logging.info(categories)
             entities, text = self.perform_NER(content, **kwargs)

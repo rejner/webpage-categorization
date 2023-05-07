@@ -1,5 +1,6 @@
 from .classification.bart_large_mnli import BARTLarge
 from .classification.DeBERTa_v3_base_mnli import DeBerta_v3_base_mnli
+from .classification.DeBERTa_v3_base_mnli_fever_docnli_ling_2c import DeBerta_v3_base_mnli_fever_docnli_ling_2c
 from .classification.DeBERTa_v3_large_mnli import DeBerta_v3_large_mnli
 from .ner.tweetner7 import TweetNER7, WebCatNERPipeline
 from transformers import pipeline
@@ -34,6 +35,16 @@ models = [
         "model_class": AutoModelForSequenceClassification,
         "tokenizer_class": AutoTokenizer,
         "base_class": DeBerta_v3_base_mnli,
+        "task": "classification",
+        "default": False
+    },
+    {
+        "tokenizer": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c",
+        "model": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c",
+        "pipeline": "zero-shot-classification",
+        "model_class": AutoModelForSequenceClassification,
+        "tokenizer_class": AutoTokenizer,
+        "base_class": DeBerta_v3_base_mnli_fever_docnli_ling_2c,
         "task": "classification",
         "default": False
     },

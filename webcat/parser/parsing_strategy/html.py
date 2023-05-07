@@ -3,6 +3,7 @@ from collections import Counter
 from bs4 import BeautifulSoup
 import hashlib
 from .base import ParsingStrategy
+import logging
 
 class TemplatesStrategy(ParsingStrategy):
     """
@@ -102,8 +103,10 @@ class TemplatesStrategy(ParsingStrategy):
                 
             if segments_match:
                 segments = tmp_segments
+                logging.info("Template matched, used template: {}".format(template))
                 break
         
+
         return segments
 
     def parse(self, file_path):

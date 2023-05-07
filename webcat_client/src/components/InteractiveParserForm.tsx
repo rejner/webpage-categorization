@@ -20,8 +20,8 @@ export const hypothesis_presets = [
 ]
 
 export const label_presets = [
-    "drugs,hacking,fraud,cryptocurrency,delivery,weapons",
-    "drugs,hacking,fraud,cryptocurrency,delivery,weapons,porn,childporn,software,investing,politics",
+    "drugs,hacking,fraud,cryptocurrency,shipment delivery,weapons,counterfeit,childporn,cryptography",
+    "drugs,hacking,fraud,cryptocurrency,shipment delivery,weapons,porn,childporn,software,investing,politics",
     "crypto mining, crypto trading, bitcoin",
 ]
 

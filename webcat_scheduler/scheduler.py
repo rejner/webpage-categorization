@@ -6,7 +6,6 @@ import logging
 import requests
 
 
-
 def get_workers():
     return Worker.query.all()
 
@@ -55,6 +54,10 @@ def create_schedule_entry(worker, file_path):
 class WebCatScheduler(Resource):
     def __init__(self):
         super().__init__()
+    
+    def __del__(self):
+        # close session
+        db.session.close()
 
     def get(self):
         workers = get_workers()
@@ -68,6 +71,8 @@ class WebCatScheduler(Resource):
         worker = Worker.query.get(worker_id)
         release_worker(worker)
         logging.info('Worker {} released'.format(worker.url))
+        # close session
+         
         return {
             'message': 'Worker released.'
         }, 200
