@@ -23,4 +23,5 @@ RUN pip install beautifulsoup4
 RUN pip install sentencepiece
 RUN pip install nltk
 RUN pip install debugpy
+RUN pip install lxml
 

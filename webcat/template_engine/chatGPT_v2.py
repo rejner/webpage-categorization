@@ -1,12 +1,12 @@
 from collections import Counter
-import os
 import openai
 import json
 import bs4
 from .base import TemplateEngine
-from .exceptions import MissingOpenAIKeyError
 import re
 import logging
+from webcat.models_extension import Element
+from lxml import etree
 
 class ChatGPTTemplateEngine_v2(TemplateEngine):
     """
@@ -113,10 +113,13 @@ class ChatGPTTemplateEngine_v2(TemplateEngine):
             }
         ]
         #OUTPUT_BUNGE = '[{"post-title": "Future of Bungee Shop and all Black market sites", "post-author": "Reximusmaximus", "post-message": "Just Curious. I am an avid Silk road supporter, but I strongly l"}, {"post-title": "Re: Future of Bungee Shop and all Black market sites", "post-author": "Mm31qIPrZ", "post-message": "I believe their current plan is to keep up their semi-private sh"}, {"post-title": "Re: Future of Bungee Shop and all Black market sites", "post-author": "Reximusmaximus", "post-message": "I mean ill probably make an account, but after the fall of SR 1."}]'
-        OUTPUT_UTOPIA = '[{"post-title": "Warning from DRP2 (Silk Road 2.0): Do not spam our forums!", "post-author": "SorryMario", "post-message": "BTW, 405 posts is nothing. frim could do that by his little auti\\nIt probably is him in all honesty haha! Congrats on Modship, jus"}, {"post-title": "Warning from DRP2 (Silk Road 2.0): Do not spam our forums!", "post-author": "ChingChingChingChing", "post-message": "Fuck SR2 and and admin there (that\'s you, scout, you little fuck\\nIf they \\"start returning fire\\" that\'s pretty much a declaration \\nI see this as desperation. Their own little scam of a marketplac\\nsticksNshits wrote:\\nI was unaware that DPR2 was even active at this point?\\nLol, the mods are spreading some bullshit that DPR2 has returned"}]'
-        return OUTPUT_UTOPIA, prompt, 0
+        # OUTPUT_UTOPIA = '[{"post-title": "Warning from DRP2 (Silk Road 2.0): Do not spam our forums!", "post-author": "SorryMario", "post-message": "BTW, 405 posts is nothing. frim could do that by his little auti\\nIt probably is him in all honesty haha! Congrats on Modship, jus"}, {"post-title": "Warning from DRP2 (Silk Road 2.0): Do not spam our forums!", "post-author": "ChingChingChingChing", "post-message": "Fuck SR2 and and admin there (that\'s you, scout, you little fuck\\nIf they \\"start returning fire\\" that\'s pretty much a declaration \\nI see this as desperation. Their own little scam of a marketplac\\nsticksNshits wrote:\\nI was unaware that DPR2 was even active at this point?\\nLol, the mods are spreading some bullshit that DPR2 has returned"}]'
+        # return OUTPUT_UTOPIA, prompt, 0
         # response = RESPONSE_TOTRUGA_2
         # response = RESPONSE
+
+        # OUTPUT_BUNGEE = '[{"post-title": "Future of Bungee Shop and all Black market sites", "post-author": "Reximusmaximus", "post-message": "Just Curious. I am an avid Silk road supporter, but I strongly l"}, {"post-title": "Future of Bungee Shop and all Black market sites", "post-author": "Mm31qIPrZ", "post-message": "I believe their current plan is to keep up their semi-private sh"}, {"post-title": "Future of Bungee Shop and all Black market sites", "post-author": "Reximusmaximus", "post-message": "I mean ill probably make an account, but after the fall of SR 1."}]'
+        # return OUTPUT_BUNGEE, prompt, 0
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
@@ -251,10 +254,42 @@ class ChatGPTTemplateEngine_v2(TemplateEngine):
             Calculates the depth of the element.
         """
         depth = 0
-        while element.parent:
-            depth += 1
-            element = element.parent
+        # BeautifulSoup
+        if hasattr(element, "parent"):
+            while element.parent:
+                depth += 1
+                element = element.parent
+        # lxml
+        else:
+            while element.getparent() is not None:
+                depth += 1
+                element = element.getparent()
+        
         return depth
+
+    def create_xPath(self, element):
+        """
+            Creates an XPath for the given element.
+        """
+        path = []
+        # BeautifulSoup
+        if hasattr(element, "parent"):
+            while element.parent:
+                if element.name is not None:
+                    path.append(element.name)
+                element = element.parent
+        # lxml
+        else:
+            while element.getparent() is not None:
+                if element.tag is not None:
+                    path.append(element.tag)
+                element = element.getparent()
+        
+        # reverse the path and construct xPath
+        path.reverse()
+        path = "/".join(path)
+        path = "/" + path
+        return path
 
     def analyze_segments(self, segments, soup: bs4.BeautifulSoup):
         if segments is None:
@@ -265,66 +300,81 @@ class ChatGPTTemplateEngine_v2(TemplateEngine):
         candidate_elements = {k: [] for k in self.segment_types}
         for segment_type in self.segment_types:
             for segment in segments:
-                if segment_type in segment:
-                    text_to_find = segment[segment_type]
-                    if text_to_find is None:
+                # skip if segment type is not in segment
+                if not segment_type in segment:
+                    continue
+
+                text_to_find = segment[segment_type]
+                if text_to_find is None:
+                    continue
+
+                text_to_find = text_to_find.split("\n")[0]
+                if text_to_find == "":
+                    continue
+                
+                pattern = None
+                # create pattern for large-text
+                if segment_type in ["post-message", "post-title"]:
+                    # split text into tri-grams and find the corresponding HTML elements
+                    text_to_find = text_to_find.split(" ")
+                    # if the number of words is even, then use bi-grams, otherwise use tri-grams
+                    N_GRAM_SIZE = 2 if len(text_to_find) % 2 == 0 else 3
+                    text_to_find = [text_to_find[i:i+N_GRAM_SIZE] for i in range(0, len(text_to_find), N_GRAM_SIZE)]
+                    text_to_find = [re.sub(r"[^a-zA-Z0-9\s]", "", " ".join(x)) for x in text_to_find]
+                    text_to_find = "|".join(text_to_find)
+                    try:
+                        pattern = re.compile(text_to_find)
+                    except Exception as e:
+                        print("Could not compile regex pattern for text: {}".format(text_to_find))
+                        continue
+                
+                if pattern is None:
+                    # compile regex pattern to match exact text
+                    pattern = re.compile(text_to_find)
+
+                for i, node in self.text_nodes:
+                    # find the exact text node (texts must be equal)
+                    if not pattern.search(node):
                         continue
 
-                    text_to_find = text_to_find.split("\n")[0]
-                    if text_to_find == "":
-                        continue
-                    
-                    if segment_type == "post-message" or segment_type == "post-title":
-                        # split text into tri-grams and find the corresponding HTML elements
-                        text_to_find = text_to_find.split(" ")
-                        # if the number of words is even, then use bi-grams, otherwise use tri-grams
-                        N_GRAM_SIZE = 2 if len(text_to_find) % 2 == 0 else 3
-                        text_to_find = [text_to_find[i:i+N_GRAM_SIZE] for i in range(0, len(text_to_find), N_GRAM_SIZE)]
-                        text_to_find = [re.sub(r"[^a-zA-Z0-9\s]", "", " ".join(x)) for x in text_to_find]
-                        text_to_find = "|".join(text_to_find)
-                        # escape special characters
-                        # text_to_find = re.escape(text_to_find)
-                        # remove special characters, including ()
+                    # we have text node, get the corresponding HTML element
+                    aux_node = node.parent
+                    # We presume that each content part is eventually wrapped in a div or h1-h6 tag
+                    # Extract the most top-level tag (this is because multiple tags can be nested
+                    # and represent the same content part, such as multiple <p> tags inside a <div> tag)
+                    if aux_node.name not in ["div", "h1", "h2", "h3", "h4", "h5", "h6", "a", "span"] :
+                        aux_node = aux_node.parent
+
+                    element = Element(
+                        tag=aux_node.name,
+                        parent_tag=aux_node.parent.name,
+                        grandparent_tag=aux_node.parent.parent.name,
+                        depth=self.calculate_element_depth(aux_node) - 1,
+                        xPath=self.create_xPath(aux_node),
+                        classes=aux_node.get("class"),
+                        type_id=0
+                        )
                         
-
-                        # prevent unterminated subpattern error
-                        # text_to_find = "(?:" + text_to_find + ")"
-                        # compile regex pattern for tri-grams
-                        try:
-                            pattern = re.compile(text_to_find)
-                        except Exception as e:
-                            print("Could not compile regex pattern for text: {}".format(text_to_find))
-                            continue
-                    for i, node in self.text_nodes:
-                        # find the exact text node (texts must be equal)
-                        if segment_type == "post-message" or segment_type == "post-title":
-                            if pattern.search(node):
-                                element = TemplateElements(
-                                    tag=node.parent.name,
-                                    parent_tag=node.parent.parent.name,
-                                    grandparent_tag=node.parent.parent.parent.name,
-                                    depth=self.calculate_element_depth(node) - 1,
-                                    )
-                                candidate_elements[segment_type].append(element)
-                        else:
-                            if node == text_to_find:
-                                element = TemplateElements(
-                                    tag=node.parent.name,
-                                    parent_tag=node.parent.parent.name,
-                                    grandparent_tag=node.parent.parent.parent.name,
-                                    depth=self.calculate_element_depth(node) - 1,
-                                    )
-                                candidate_elements[segment_type].append(element)
+                    candidate_elements[segment_type].append(element)
+   
                         
         # filter candidates
         filtered_candidates = {k: None for k in self.segment_types}
         for type, candidates in candidate_elements.items():
-            # create a set of candidates
-            candidates = set(candidates)
+            # count candidates with the same xPath and select the one with the highest count
+            xPaths = [x.xPath for x in candidates]
+            xPath_counts = Counter(xPaths)
+            # get the most common xPath, if multiple xPaths have the same count, then select all
+            # multiple xPaths can have the same count if the text is the same, but the HTML structure is different
+            # most_common_xPath = xPath_counts.most_common(1)[0][0]
+            most_common_xPath_count = xPath_counts.most_common(1)[0][1]
+            most_common_xPaths = [x[0] for x in xPath_counts.most_common() if x[1] == most_common_xPath_count]
+            # filter candidates
+            candidates = [x for x in candidates if x.xPath in most_common_xPaths]
             # if there are no candidates, then skip
             if len(candidates) == 0:
                 continue
-            filtered_candidates[type] = list(candidates)
+            filtered_candidates[type] = candidates
 
         return filtered_candidates
     
@@ -332,58 +382,37 @@ class ChatGPTTemplateEngine_v2(TemplateEngine):
         """
             Determines the template elements from the candidates.
         """
-        elements = {k: [] for k in self.segment_types}
+        html = str(soup)
+        root = etree.HTML(html)
+        segments = {k: [] for k in self.segment_types}
         for type, els in candidates.items():
             if els is None:
                 continue
-
-            # use the template element with the most matches
+            # iterate through the elements and find the corresponding HTML elements
             for el in els:
-                tag = el.tag
-                parent_tag = el.parent_tag
-                grandparent_tag = el.grandparent_tag
-                depth = el.depth
-
-                # check if parent has multiple same elements of the current element
-                # if it does, then our template element is the parent (can be the case of multiple paragraphs)
-                parent_els = soup.findAll(parent_tag)
-                #test_1 = parent_els[0].parent.name
-                #test_2 = self.calculate_element_depth(parent_els[0])
-                parent_els = [el for el in parent_els if el.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth - 1]
-                el_replaced = False
-                for parent_el in parent_els:
-                    same_children_cnt = 0
-                    for child in parent_el.children:
-                        if child.name == tag and parent_el.parent.name == grandparent_tag:
-                            same_children_cnt += 1
-
-                    # if there are multiple same children, then the parent is the template element
-                    if same_children_cnt > 1:
-                        tag = parent_tag
-                        parent_tag = parent_el.parent.name
-                        grandparent_tag = parent_el.parent.parent.name
-                        depth = depth - 1
-                        el_replaced = True
-                        break
-
-                # find all elements that match the template element
-                els = soup.findAll(tag)
-                if not el_replaced:
-                    els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth and el.next != "\n"]
-                else:
-                    els = [el for el in els if el.parent.name == parent_tag and el.parent.parent.name == grandparent_tag and self.calculate_element_depth(el) == depth]
-                elements[type].append(els) 
+                xPath = el.xPath
+                if el.classes is not None:
+                    xPath = "//{}[contains(@class, '{}')]".format(
+                        el.tag,
+                        " ".join(el.classes)
+                    )
+                elements = root.xpath(xPath)
+                if len(elements) == 0:
+                    continue
+                # append the elements to the segments
+                segments[type].append(elements) 
         
         # if there are multiple elements, use the one with the most elements
-        final_elements = {k: None for k in self.segment_types}
-        for type, els_lists in elements.items():
+        final_segments = {k: None for k in self.segment_types}
+        for type, els_lists in segments.items():
+            # find the list with the most elements
             for el_list in els_lists:
-                if not final_elements[type]:
-                    final_elements[type] = el_list
-                elif len(el_list) > len(final_elements[type]):
-                    final_elements[type] = el_list
+                if not final_segments[type]:
+                    final_segments[type] = el_list
+                elif len(el_list) > len(final_segments[type]):
+                    final_segments[type] = el_list
                 
-        return final_elements
+        return final_segments
     
     def template_from_file(self, file_path):
         """
@@ -403,12 +432,6 @@ class ChatGPTTemplateEngine_v2(TemplateEngine):
         candidates = self.analyze_segments(segments, soup)
         elements = self.determine_template_elements(candidates, soup)
 
-        for type, el in elements.items():
-            if len(el) == 0:
-                print("No element found for type", type)
-            if len(el) > 1:
-                print("Multiple elements found for type", type)
-
         # if all segments have the same amount of elements, then we can use the first element
         # we found a perfect template
         perfect_match = False
@@ -427,24 +450,25 @@ class ChatGPTTemplateEngine_v2(TemplateEngine):
 
         template_proposal = {}
         # template = {}
-        contents = {k: [el.text for el in v] for k, v in elements.items()}
+        contents = {k: [' '.join(el.itertext()).strip() for el in v] for k, v in elements.items()}
         # if we presumed the header, then append (presumed) to the header
         if presumed_title:
             contents["post-title"] = [el + " (presumed)" for el in contents["post-title"]]
 
         obj_elements = []
         for type, els in elements.items():
-            if len(els) == 0:
-                # template[type] = None
-                contents[type] = []
-            else:
-                element = TemplateElements(
-                    tag=els[0].name,
-                    parent_tag=els[0].parent.name,
-                    grandparent_tag=els[0].parent.parent.name,
-                    depth=self.calculate_element_depth(els[0]),
+            if len(els) > 0:
+                # get lxml element
+                e = els[0]
+                element = ProposalElement(
+                    tag=e.tag,
+                    parent_tag=e.getparent().tag,
+                    grandparent_tag=e.getparent().getparent().tag,
+                    depth=self.calculate_element_depth(e),
+                    xPath=self.create_xPath(e),
+                    classes=e.get("class"),
+                    type=type
                 ).__dict__
-                element["type"] = type
                 obj_elements.append(element)
 
         template_proposal["perfect_match"] = perfect_match
@@ -463,29 +487,6 @@ class ChatGPTTemplateEngine_v2(TemplateEngine):
                 print(el.text[:100])
             print()
 
-class TemplateElements():
-    def __init__(self, tag, parent_tag, grandparent_tag, depth):
-        self.tag = tag
-        self.parent_tag = parent_tag
-        self.grandparent_tag = grandparent_tag
-        self.depth = depth
-    
-    def __eq__(self, other):
-        # classes might not be so important
-        return self.tag == other.tag and self.parent_tag == other.parent_tag and self.grandparent_tag == other.grandparent_tag, self.depth == other.depth
-
-    def __hash__(self):
-        return hash((self.tag, self.parent_tag, self.grandparent_tag, self.depth))
-    
-    # make TemplateElements json serializable
-    def __repr__(self):
-        return str(self.__dict__)
-    
-    def __str__(self):
-        return str(self.__dict__)    
-
-
-
 class Struct(object):
     def __init__(self, data):
         for name, value in data.items():
@@ -497,24 +498,14 @@ class Struct(object):
         else:
             return Struct(value) if isinstance(value, dict) else value
 
-RESPONSE = {
-  "choices": [
-    {
-      "finish_reason": "stop",
-      "index": 0,
-      "message": {
-        "content": "[\n  {\n    \"post-header\": \"Topic: Bungee54 State of Operations\",\n    \"post-author\": \"Calico Jack\",\n    \"post-message\": \"To all of our friends, valued customers, competitors, partners,  haters and trolls of Bungee54!Please read the following announcement carefully and in it's entirety:The Bungee54 Team is going through a transition that will involve us taking a step back int\\nBAFH\\\"Cryptography is Freedom\\\"\"\n  },\n  {\n    \"post-header\": \"Re: Bungee54 State of Operations\",\n    \"post-author\": \"Fahshizzle\",\n    \"post-message\": \"thanks for the heads up, certainly makes me feel better about all the FUD thats been going around.sounds like ill need start shopping around for a new vendor  if youre still willing to work with me PM please otherwise, do you have any suggestions for the c\"\n  },\n  {\n    \"post-header\": \"Re: Bungee54 State of Operations\",\n    \"post-author\": \"drmindbender\",\n    \"post-message\": \"Despite my latest package order not having arrived for more than 2 weeks... and I'm going to assume it was probably seized in the next day or 2, I am very happy to have read your State of Operations.\\u00a0 This goes very closely with how I personally feel suppl\"\n  }\n]",
-        "role": "assistant"
-      }
-    }
-  ],
-  "created": 1680097471,
-  "id": "chatcmpl-6zQOFctAOP8RQiAs9THN8sViZLFuF",
-  "model": "gpt-3.5-turbo-0301",
-  "object": "chat.completion",
-  "usage": {
-    "completion_tokens": 291,
-    "prompt_tokens": 1224,
-    "total_tokens": 1515
-  }
-}
+class ProposalElement:
+    def __init__(self, tag, parent_tag, grandparent_tag, depth, xPath, classes, type):
+        self.tag = tag
+        self.parent_tag = parent_tag
+        self.grandparent_tag = grandparent_tag
+        self.depth = depth
+        self.xPath = xPath
+        self.classes = classes
+        self.type = type
+    
+

@@ -53,7 +53,8 @@ export const ContentElement = (props: ContentElementProps) => {
                 if (merged_text_obj[a.type.tag] === undefined) {
                     merged_text_obj[a.type.tag] = "";
                 }
-                merged_text_obj[a.type.tag] += `[CHUNK #${a.tag}] ` + a.content + " ";
+                // merged_text_obj[a.type.tag] += `[CHUNK #${a.tag}] ` + a.content + " ";
+                merged_text_obj[a.type.tag] += a.content + " ";
                 //console.log(a.categories);
                 for (let cat of a.categories) {
                     let key = cat.category.name;
