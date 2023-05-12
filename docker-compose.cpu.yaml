@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  webcat-client:
+    image: webcat/client-prod
+    build:
+      context: ./webcat_client
+      dockerfile: Dockerfile.prod
+    restart: always
+    ports:
+      - '80:80'
+    depends_on:
+      - webcat-api
+  
+  webcat-api:
+    image: webcat/api-slim
+    build: 
+      context: ./webcat_api
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '5000:5000'
+    depends_on:
+      - postgres
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_api:/workspace/webcat_api"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_api/run.py
+
+  webcat-scheduler:
+    image: webcat/scheduler-slim
+    build: 
+      context: ./webcat_scheduler
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '5001:5001'
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_scheduler:/workspace/webcat_scheduler"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_scheduler/run.py
+
+  webcat-templates:
+    image: webcat/templates-slim
+    build: 
+      context: ./webcat_templates
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '5002:5002'
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_templates:/workspace/webcat_templates"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat_templates/run.py
+
+  webcat-worker:
+    image: webcat/worker-cpu-slim
+    build: 
+      context: ./webcat_worker
+      dockerfile: Dockerfile.cpu
+    restart: always
+    ports:
+      - '5003:5003'
+    environment:
+      - PORT=5003
+      - HOST=webcat-worker
+    depends_on:
+      - postgres
+      - webcat-api
+    volumes:
+      - "${LOCAL_PATH}/data:/workspace/data"
+      - "${LOCAL_PATH}/webcat:/workspace/webcat"
+      - "${LOCAL_PATH}/webcat_worker:/workspace/webcat_worker"
+    command:
+      - /bin/sh
+      - "-c"
+      - |
+        cd /workspace
+        python3 webcat/model_repository/download.py
+        python3 webcat_worker/run.py
+
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=webcat_db
+    ports:
+      - '5432:5432'
+    volumes: 
+      - db:/var/lib/postgresql/data
+
+volumes:
+  db:
+    driver: local
