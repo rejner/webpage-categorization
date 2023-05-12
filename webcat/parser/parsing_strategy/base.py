@@ -1,12 +1,10 @@
 import abc
 import re
 import nltk
-import urlextract
 import datefinder
 
 nltk.download('punkt')
 
-# url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 url_regex = re.compile(r'((?:https?://|ftp://|http://|www\d{0,3}\.)'
                        r'(?:[^\s/$.?#][^\s]*)?)')
 email_pattern = r'[\w\.-]+@[\w\.-]+'
@@ -35,13 +33,9 @@ class ParsingStrategy(object):
     
     @staticmethod
     def process_text(text):
-        """Process the given text.
         """
-        # Extract URLs and replace them with a placeholder [URL]
-        # urls = urlextract.URLExtract().find_urls(text)
-        # for url in urls:
-        #     text = text.replace(url, "{{URL}}")
-
+            Process the given text.
+        """
         # Remove all the newlines
         text = text.replace("\n", " ")
 

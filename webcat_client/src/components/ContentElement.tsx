@@ -22,12 +22,8 @@ export const ContentElement = (props: ContentElementProps) => {
     // long textual content might be split into multiple attributes
     const [mergedText, setMergedText] = React.useState<MergedText>({});
     const [mergedCategories, setMergedCategories] = React.useState<any>({});
-    // const [analysedContentTags, setAnalysedContentTags] = React.useState<string[]>([...props.content_tags]);
 
     useEffect(() => {
-        // if (props.content_tags !== undefined) {
-        //     setAnalysedContentTags([...analysedContentTags, ...props.content_tags]);
-        // }
         setContent(props.content);
     }, [props.content]);
 

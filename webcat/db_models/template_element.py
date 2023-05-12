@@ -1,6 +1,5 @@
 from webcat.database import db
 
-# binding table of templates and elements
 class TemplateElement(db.Model):
     __tablename__ = 'template_elements'
     id = db.Column(db.Integer, primary_key=True)

@@ -1,6 +1,3 @@
-// This React component will inject webpage content into itself and will act like a google chrome devtools.
-// User can move with mouse and click on elements to get their css selectors.
-
 import React, { useState, useEffect } from 'react';
 import { Container, Button, Form, Row, Col, Spinner, Stack } from 'react-bootstrap';
 import { useFilePicker } from 'use-file-picker';

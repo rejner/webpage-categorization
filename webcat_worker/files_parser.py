@@ -116,5 +116,3 @@ class WebCatFilesParser(Resource):
             return {'error': str(e)}, 400
 
         return {'contents': contents, 'stats': stats}, 200
-
-        # return result, 200

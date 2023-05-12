@@ -1,9 +1,6 @@
 from flask_restful import Resource, reqparse
-from flask import current_app, g
-# from .worker import worker
 from webcat.database import db
 from webcat.models_extension import *
-# from .worker import WebCatWorker
 from webcat.pipeline import WebCatPipeline
 import json
 

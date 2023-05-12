@@ -2,7 +2,6 @@ from flask_restful import Resource, reqparse, request
 from webcat.models_extension import *
 import requests
 
-# Sending requests to webcat_tempaltes service
 class WebCatTempaltesElementTypesProxy(Resource):
     def __init__(self):
         super().__init__()

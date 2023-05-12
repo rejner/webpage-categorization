@@ -24,9 +24,6 @@ class WebCatDataProvider(Resource):
         self.parser.add_argument('categories', type=str, action='append')
         self.parser.add_argument('cat_threshold', type=float, default=0.0)
         self.parser.add_argument('entity_types', type=str, action='append')
-        # self.parser.add_argument('ent_threshold', type=float, default=0.0)
-        # self.parser.add_argument('entity_values', type=str, action='append')
-        # self.parser.add_argument('file_names', type=str, action='append')
         self.parser.add_argument('file_paths', type=str, action='append')
         self.parser.add_argument('authors', type=str, action='append')
         self.file_cache = {}
@@ -36,9 +33,6 @@ class WebCatDataProvider(Resource):
         categories = args.get('categories', [])
         cat_threshold = args.get('cat_threshold', 0)
         entity_types = args.get('entity_types', [])
-        # ent_threshold = args.get('ent_threshold', 0)
-        # entity_values = args.get('entity_values', [])
-        # file_names = args.get('file_names', [])
         file_paths = args.get('file_paths', [])
         authors = args.get('authors', [])
         if file_paths:

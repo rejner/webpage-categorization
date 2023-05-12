@@ -140,9 +140,6 @@ function DataViewer() {
     }, [filter]);
 
 
-
-
-
     /* Return a filter options for both categories and entity_types. */
     /* Options should be toggling buttons for enabling/disabling certail filter.  */
     /* Multiple categories/entities can be selected at once. */
@@ -195,12 +192,6 @@ function DataViewer() {
                                 The threshold for the category confidence.
                             </Form.Text>
                         </Col>
-                        {/* <Col>
-                            <Form.Label className="pt-3">Entity Threshold</Form.Label>
-                            <Form.Control type="number" value={filter.ent_threshold} min='0' max='1' step='0.01'onChange={(e) => {
-                                setFilter({...filter, ent_threshold: parseFloat(e.target.value)});
-                            }} />
-                        </Col> */}
                     </Row>
                     <Stack direction="vertical" gap={1}>
                         {/* Post author search */}

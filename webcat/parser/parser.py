@@ -1,6 +1,5 @@
 from pathlib import Path
 import logging
-import re
 import sys
 import os
 import joblib
@@ -21,9 +20,6 @@ def mock_parse_file(file_path: Path):
 '''
     WebCatParser class definition.
     The parser is responsible for parsing the HTML files and extracting the data.
-        Parameters:
-            files_path (list[str]):      Path(s) to files which should be analyzed
-            timeout (int):               Time limit in seconds for parsing a file.
 '''
 class WebCatParser():
     def __init__(self, db, **kwargs):

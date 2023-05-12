@@ -11,9 +11,6 @@ import { Col, Form, Row } from 'react-bootstrap';
 function Home() {
   const { server_ip, setServerIp, server_port, setServerPort, server_api, setServerApi } = React.useContext(AppContext);
   const [ serverUp, setServerUp ] = React.useState(false);
-  // const [ serverIpInput, setServerIpInput ] = React.useState(server_ip);
-  // const [ serverPortInput, setServerPortInput ] = React.useState(server_port);
-  // const [ serverApiInput, setServerApiInput ] = React.useState(server_api);
 
   // ping server
   const ping_server = async () => {

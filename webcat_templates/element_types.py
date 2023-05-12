@@ -3,7 +3,6 @@ import json
 from os import path
 from webcat.database import db
 from webcat.models_extension import *
-import logging
 from const import DEFAULT_ELEMENT_TYPES
 
 class WebCatElementTypes(Resource):

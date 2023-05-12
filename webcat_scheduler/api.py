@@ -1,13 +1,11 @@
 from flask import Flask
 from flask_restful import Api
 from webcat.database import db
-# enable CORS for localhost
 from flask_cors import CORS
 
 def create_app(bare=False):
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
-    # enable CORS for localhost
     CORS(app)
     db.init_app(app)
     

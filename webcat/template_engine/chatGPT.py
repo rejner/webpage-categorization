@@ -72,7 +72,7 @@ class ChatGPTTemplateEngine(TemplateEngine):
 
     @property
     def name(self):
-        return "ChatGPT Template Engine"
+        return "ChatGPT Template Engine (Deprecated)"
     
     @property
     def requiresKey(self):

@@ -30,7 +30,7 @@ Faculty of Information Technology, Brno University of Technology, 2023
 
 ## Apple Silicon (M1, M2) support
 
-* Due to not existing Pytorch Docker Images for Arm64 architecture with the MPS (Metal Programming Framework) support, the worker service has to run directly on the host machine. This is achieved by running the worker service in a separate Python virtual environment. The worker service is started automatically by the `run.apple-silicon.sh` script. The script also installs the required dependencies into venv environment and starts the rest of the services in Docker containers.
+* Due to not existing PyTorch Docker Images for Arm64 architecture with the MPS (Metal Programming Framework) support, the worker service has to run directly on the host machine. This is achieved by running the worker service in a separate Python virtual environment. The worker service is started automatically by the `run.apple-silicon.sh` script. The script also installs the required dependencies into venv environment and starts the rest of the services in Docker containers.
 * It is recommended to use this for Apple Silicon chips, as it highly accelerates the inference speed (5x times aprox. compared to running on bare M1).
 
 # How to use
@@ -82,3 +82,11 @@ Faculty of Information Technology, Brno University of Technology, 2023
 └── README.md                         # Project documentation
 
 ```
+
+# Known issues
+
+ - The codebase needs to be refactored and cleaned up eventually, after that, the documentation will be updated accordingly.
+ - The codebase is not fully tested, more tests need to be written.
+ - Database migrations are not fully automated, they need to be run manually.
+
+

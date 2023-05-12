@@ -9,13 +9,6 @@ class DeBerta_v3_large_mnli():
     size = "870 MB"
     description = "A model trained on MNLI dataset using Microsoft's DeBERTa v3 base architecture."
     default_hypothesis = "The text provides information about {}."
-    def get_device(self):
-        device = 0 if torch.cuda.is_available() else -1
-        # test for apple silicon mps
-        if device == -1 and torch.backends.mps.is_available():
-            device = torch.device("mps")
-        logging.info(f"(Torch) Using device {device}")
-        return device
     
     def __init__(self, init_labels=None) -> None:
         self.labels = ["drugs", "hacking", "fraud", "counterfeit goods", "cybercrime", "cryptocurrency"] if init_labels is None else init_labels
@@ -24,6 +17,14 @@ class DeBerta_v3_large_mnli():
         self.tokenizer = self.model.tokenizer
         self.hypothesis_template = "Talks about {}."
         self.batch_size = 8
+
+    def get_device(self):
+        device = 0 if torch.cuda.is_available() else -1
+        # test for apple silicon mps
+        if device == -1 and torch.backends.mps.is_available():
+            device = torch.device("mps")
+        logging.info(f"(Torch) Using device {device}")
+        return device
 
     def determine_params(self, **kwargs):
         labels = self.labels if "labels" not in kwargs else kwargs["labels"]

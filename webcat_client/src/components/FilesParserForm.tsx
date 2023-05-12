@@ -257,16 +257,7 @@ function FilesParserForm() {
                             })}
                         </Form.Select>
                     </Form.Group>
-                    {/** Mapping for file types that require it (create one input for each attribute type)
-                     * {
-                            "content_identifier_column": "InstanceId",
-                            "content_column": "Content",
-                            "path_column": "UrlPath",
-                            "attribute_type_column": "AttributeTag",
-                            "attribute_types_to_keep": ["content", "author_name"],
-                            "attribute_types_to_analyze": ["content"] 
-                        }
-                     */}
+
                     { supportedFileTypes.find((item) => item.name == fileType)?.requireMapping &&
                         <Form.Group className="mb-3 w-50" controlId="formMapping">
                             <Stack gap={1} direction="vertical">

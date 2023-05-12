@@ -13,8 +13,6 @@ from .models import list_all_models
 '''
 class WebCatAnalyzer():
     def __init__(self, models=None):
-        # self.classifier = XLMRobertaLarge()
-        # self.classifier = BARTLarge()
         self.init_models(models)
            
     def init_models(self, models):

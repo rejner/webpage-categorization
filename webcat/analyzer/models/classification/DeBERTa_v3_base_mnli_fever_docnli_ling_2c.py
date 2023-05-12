@@ -1,6 +1,7 @@
 from transformers import pipeline
 from transformers.pipelines.pt_utils import KeyDataset
 import torch
+import logging
 
 class DeBerta_v3_base_mnli_fever_docnli_ling_2c():
     path = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
@@ -12,10 +13,18 @@ class DeBerta_v3_base_mnli_fever_docnli_ling_2c():
     def __init__(self, init_labels=None) -> None:
         self.labels = ["drugs", "hacking", "fraud", "counterfeit goods", "cybercrime", "cryptocurrency"] if init_labels is None else init_labels
         self.model = pipeline("zero-shot-classification",
-                model="webcat/model_repository/MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c", framework="pt", device=0 if torch.cuda.is_available() else -1)
+                model="webcat/model_repository/MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c", framework="pt", device=self.get_device())
         self.hypothesis_template = "Talks about {}."
         self.batch_size = 8
 
+    def get_device(self):
+        device = 0 if torch.cuda.is_available() else -1
+        # test for apple silicon mps
+        if device == -1 and torch.backends.mps.is_available():
+            device = torch.device("mps")
+        logging.info(f"(Torch) Using device {device}")
+        return device
+    
     def determine_params(self, **kwargs):
         labels = self.labels if "labels" not in kwargs else kwargs["labels"]
         hypothesis_template = self.hypothesis_template if "hypothesis_template" not in kwargs else kwargs["hypothesis_template"]
