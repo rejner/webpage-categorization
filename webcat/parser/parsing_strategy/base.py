@@ -102,7 +102,6 @@ class ParsingStrategy(object):
         # urls = re.findall(url_pattern, text)
         if remove_urls:
             urls = url_regex.findall(text)
-            print(urls)
             # urls = urlextract.URLExtract().find_urls(text)
             for url in urls:
                 text = text.replace(url, " [URL] ")

@@ -2,25 +2,21 @@ version: '3.8'
 
 services:
   webcat-client:
-    image: webcat/node-client
+    image: webcat/client-prod
+    build:
+      context: ./webcat_client
+      dockerfile: Dockerfile.prod
     restart: always
     ports:
-      - '3000:3000'
+      - '80:80'
     depends_on:
       - webcat-api
-    environment:
-      - REACT_APP_API_URL=http://webcat-server:8080
-    volumes:
-      - "${LOCAL_PATH}/webcat_client:/workspace/webcat_client"
-    command:
-      - /bin/sh
-      - "-c"
-      - |
-        cd /workspace/webcat_client
-        npm start
   
   webcat-api:
-    image: webcat/api
+    image: webcat/api-slim
+    build: 
+      context: ./webcat_api
+      dockerfile: Dockerfile
     restart: always
     ports:
       - '5000:5000'
@@ -38,10 +34,13 @@ services:
         python3 webcat_api/run.py
 
   webcat-scheduler:
-    image: webcat/scheduler
+    image: webcat/scheduler-slim
+    build: 
+      context: ./webcat_scheduler
+      dockerfile: Dockerfile
     restart: always
-    ports:
-      - '5001:5001'
+    # ports:
+    #  - '5001:5001'
     depends_on:
       - postgres
       - webcat-api
@@ -57,10 +56,13 @@ services:
         python3 webcat_scheduler/run.py
 
   webcat-templates:
-    image: webcat/templates
+    image: webcat/templates-slim
+    build: 
+      context: ./webcat_templates
+      dockerfile: Dockerfile
     restart: always
-    ports:
-      - '5002:5002'
+    # ports:
+    #   - '5002:5002'
     depends_on:
       - postgres
       - webcat-api
@@ -76,10 +78,13 @@ services:
         python3 webcat_templates/run.py
 
   webcat-worker:
-    image: webcat/worker-gpu
+    image: webcat/worker-gpu-slim
+    build: 
+      context: ./webcat_worker
+      dockerfile: Dockerfile.gpu
     restart: always
-    ports:
-      - '5003:5003'
+    # ports:
+    #   - '5003:5003'
     environment:
       - PORT=5003
       - HOST=webcat-worker
@@ -97,7 +102,7 @@ services:
         cd /workspace
         python3 webcat/model_repository/download.py
         python3 webcat_worker/run.py
-        
+    
     deploy:
       resources:
         reservations:

@@ -77,32 +77,6 @@ services:
         cd /workspace
         python3 webcat_templates/run.py
 
-  webcat-worker:
-    image: webcat/worker-cpu-slim
-    build: 
-      context: ./webcat_worker
-      dockerfile: Dockerfile.cpu
-    restart: always
-    # ports:
-    #   - '5003:5003'
-    environment:
-      - PORT=5003
-      - HOST=webcat-worker
-    depends_on:
-      - postgres
-      - webcat-api
-    volumes:
-      - "${LOCAL_PATH}/data:/workspace/data"
-      - "${LOCAL_PATH}/webcat:/workspace/webcat"
-      - "${LOCAL_PATH}/webcat_worker:/workspace/webcat_worker"
-    command:
-      - /bin/sh
-      - "-c"
-      - |
-        cd /workspace
-        python3 webcat/model_repository/download.py
-        python3 webcat_worker/run.py
-
   postgres:
     image: postgres
     restart: always

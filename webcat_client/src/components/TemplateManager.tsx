@@ -79,10 +79,6 @@ function TemplateManager() {
                                                     <li>Type name: {element.type.name}</li>
                                                     <li>Type tag: {element.type.tag}</li>
                                                     <li>Analysis flag: {element.type.analysis_flag ? 'true' : 'false'}</li>
-                                                    <li>Tag: {element.tag}</li>
-                                                    <li>Parent Tag: {element.parent_tag}</li>
-                                                    <li>Grandparent Tag: {element.grandparent_tag}</li>
-                                                    <li>Depth: {element.depth}</li>
                                                     <li>XPath: {element.xPath}</li>
                                                     <li>Classes: {element.classes}</li>
                                                 </ul>
