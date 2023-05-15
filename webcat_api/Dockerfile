@@ -10,7 +10,6 @@ RUN pip install flask-sqlalchemy
 RUN pip install psycopg2-binary
 RUN pip install python-dotenv
 RUN pip install transformers
-RUN pip3 install torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install openai==0.27.0
 RUN pip install beautifulsoup4
 RUN pip install sentencepiece

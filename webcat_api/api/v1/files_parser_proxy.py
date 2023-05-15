@@ -4,8 +4,6 @@ import requests
 from flask_restful import Resource, reqparse, request
 import logging
 from webcat.models_extension import *
-from webcat.analyzer.models import list_all_models
-
 
 SUPPORTED_FILE_TYPES = ["csv", "html", "txt"]
 
@@ -25,31 +23,31 @@ class WebCatFilesParserProxy(Resource):
         return True, ""
 
     def create_files_list(self, path:str, **kwargs):
-            logging.info("Creating files list from path: {}".format(path))
-            recursive = kwargs.get("recursive", False)
-            # if path is a file, return it
-            if os.path.isfile(path):
-                return [path]
-            
-            # if path is a directory, return all files in it
-            # if recursive is True, return all files in all subdirectories
-            files = []
-            if os.path.isdir(path):
-                if not recursive:
-                    for filename in os.listdir(path):
-                        file_path = os.path.join(path, filename)
-                        if os.path.isfile(file_path):
-                            files.append(file_path)
-                else:
-                    for root, dirs, files in os.walk(path):
-                        for filename in files:
-                            file_path = os.path.join(root, filename)
-                            files.append(file_path)
+        logging.info("Creating files list from path: {}".format(path))
+        recursive = kwargs.get("recursive", False)
+        # if path is a file, return it
+        if os.path.isfile(path):
+            return [path]
+        
+        # if path is a directory, return all files in it
+        # if recursive is True, return all files in all subdirectories
+        files = []
+        if os.path.isdir(path):
+            if not recursive:
+                for filename in os.listdir(path):
+                    file_path = os.path.join(path, filename)
+                    if os.path.isfile(file_path):
+                        files.append(file_path)
+            else:
+                for root, dirs, files in os.walk(path):
+                    for filename in files:
+                        file_path = os.path.join(root, filename)
+                        files.append(file_path)
 
-                logging.info("Found {} files in path: {}".format(len(files), path))
-                return files
-            
-            raise Exception("Path is not a file or directory")
+            logging.info("Found {} files in path: {}".format(len(files), path))
+            return files
+        
+        raise Exception("Path is not a file or directory")
 
     def get_available_worker(self, args):
         # construct request to webcat_scheduler
@@ -71,40 +69,20 @@ class WebCatFilesParserProxy(Resource):
         if res.status_code != 200:
             raise Exception("Could not release worker")
 
-
+    # retrieve all available models
     def get(self):
-        classification_models = [
-            {
-                "name": model['base_class'].name,
-                "description": model['base_class'].description,
-                "size": model['base_class'].size,
-                "path": model['base_class'].path,
-                "task": model['task'],
-                "default": model['default'],
-                "default_hypothesis": model['base_class'].default_hypothesis
-            }
-            for model in list_all_models() if model['task'] == "classification"
-        ]
-        ner_models = [
-            {
-                "name": model['base_class'].name,
-                "description": model['base_class'].description,
-                "size": model['base_class'].size,
-                "path": model['base_class'].path,
-                "task": model['task'],
-                "default": model['default'],
-            }
-            for model in list_all_models() if model['task'] == "ner"
-        ]
-
-        presentation_models = json.dumps({
-            "models": {
-                "classification": classification_models,
-                "ner": ner_models
-            }
-        })
-
-        return presentation_models, 200
+        # get available worker
+        workers = requests.get("http://webcat-scheduler:5001/webcat_scheduler")
+        worker = workers.json()['workers'][0]
+        try:
+            # send request to worker to get available models
+            url = worker['url'] + "/webcat_files_parser"
+            res = requests.get(url)
+        except Exception as e:
+            logging.error(e.with_traceback(None))
+            return {'error': str(e)}, 400
+        
+        return res.json(), 200
     
     def post(self):
         # parse arguments in a form request

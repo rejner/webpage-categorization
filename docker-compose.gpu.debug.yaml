@@ -4,6 +4,9 @@ services:
   webcat-client:
     image: webcat/node-client
     restart: always
+    build:
+      context: ./webcat_client
+      dockerfile: Dockerfile.debug
     ports:
       - '3000:3000'
     depends_on:
@@ -20,8 +23,11 @@ services:
         npm start
   
   webcat-api:
-    image: webcat/api
+    image: webcat/api-slim
     restart: always
+    build: 
+      context: ./webcat_api
+      dockerfile: Dockerfile
     ports:
       - '5000:5000'
       - '5677:5677'
@@ -39,8 +45,11 @@ services:
         python3 -m debugpy --listen 0.0.0.0:5677 webcat_api/run_debug.py
 
   webcat-scheduler:
-    image: webcat/scheduler
+    image: webcat/scheduler-slim
     restart: always
+    build: 
+      context: ./webcat_scheduler
+      dockerfile: Dockerfile
     ports:
       - '5001:5001'
       - '5679:5679'
@@ -59,8 +68,11 @@ services:
         python3 -m debugpy --listen 0.0.0.0:5679 webcat_scheduler/run_debug.py
         
   webcat-templates:
-    image: webcat/templates
+    image: webcat/templates-slim
     restart: always
+    build: 
+      context: ./webcat_templates
+      dockerfile: Dockerfile
     ports:
       - '5002:5002'
       - '5678:5678'
@@ -79,7 +91,10 @@ services:
         python3 -m debugpy --listen 0.0.0.0:5678 webcat_templates/run_debug.py
 
   webcat-worker:
-    image: webcat/worker-gpu
+    image: webcat/worker-gpu-slim
+    build: 
+      context: ./webcat_worker
+      dockerfile: Dockerfile.gpu
     restart: always
     ports:
       - '5003:5003'
@@ -113,7 +128,6 @@ services:
 
   postgres:
     image: postgres
-    restart: always
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres

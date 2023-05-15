@@ -28,31 +28,31 @@ class WebCatFilesParser(Resource):
         return True, ""
 
     def create_files_list(self, path:str, **kwargs):
-            logging.info("Creating files list from path: {}".format(path))
-            recursive = kwargs.get("recursive", False)
-            # if path is a file, return it
-            if os.path.isfile(path):
-                return [path]
-            
-            # if path is a directory, return all files in it
-            # if recursive is True, return all files in all subdirectories
-            files = []
-            if os.path.isdir(path):
-                if not recursive:
-                    for filename in os.listdir(path):
-                        file_path = os.path.join(path, filename)
-                        if os.path.isfile(file_path):
-                            files.append(file_path)
-                else:
-                    for root, dirs, files in os.walk(path):
-                        for filename in files:
-                            file_path = os.path.join(root, filename)
-                            files.append(file_path)
+        logging.info("Creating files list from path: {}".format(path))
+        recursive = kwargs.get("recursive", False)
+        # if path is a file, return it
+        if os.path.isfile(path):
+            return [path]
+        
+        # if path is a directory, return all files in it
+        # if recursive is True, return all files in all subdirectories
+        files = []
+        if os.path.isdir(path):
+            if not recursive:
+                for filename in os.listdir(path):
+                    file_path = os.path.join(path, filename)
+                    if os.path.isfile(file_path):
+                        files.append(file_path)
+            else:
+                for root, dirs, files in os.walk(path):
+                    for filename in files:
+                        file_path = os.path.join(root, filename)
+                        files.append(file_path)
 
-                logging.info("Found {} files in path: {}".format(len(files), path))
-                return files
-            
-            raise Exception("Path is not a file or directory")
+            logging.info("Found {} files in path: {}".format(len(files), path))
+            return files
+        
+        raise Exception("Path is not a file or directory")
 
     def get(self):
         classification_models = [
