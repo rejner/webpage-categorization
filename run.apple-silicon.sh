@@ -31,6 +31,11 @@ mv .env.tmp .env
 sed "s|SERVER_IP=.*|SERVER_IP=$SERVER_IP|g" .env > .env.tmp
 mv .env.tmp .env
 
+# due to some metadata issues, we have to pull dependant images manually
+docker pull python:3.11-slim
+docker pull nginx:1.21.0-alpine
+docker pull node:16-alpine
+
 # docker-compose
 docker-compose -p webcat_apple-silicon_prod -f docker-compose.apple-silicon.yaml up -d
 

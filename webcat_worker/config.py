@@ -1,5 +1,7 @@
+# This configuration file is copied to all Flask services that require it.
+# Modifications made to this file will be reflected in all services.
 
-SQL_HOST = 'host.docker.internal'
+SQL_HOST = "localhost"
 SQL_PORT = 5432
 SQL_DATABASE = 'webcat_db'
 SQL_USER = 'postgres'

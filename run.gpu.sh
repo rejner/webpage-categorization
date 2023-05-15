@@ -35,6 +35,11 @@ cp config.py ./webcat_worker/config.py
 cp config.py ./webcat_scheduler/config.py
 cp config.py ./webcat_templates/config.py
 
+# due to some metadata issues, we have to pull dependant images manually
+docker pull python:3.11-slim
+docker pull nginx:1.21.0-alpine
+docker pull node:16-alpine
+
 # run docker-compose
 docker-compose -p webcat_gpu_prod -f docker-compose.gpu.yaml up -d
 
