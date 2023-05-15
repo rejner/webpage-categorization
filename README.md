@@ -42,6 +42,13 @@ Some services contain configurations for both debugging purposes and production.
     - When worker service is downloading the models, requesting job from the scheduler will result in an "No available workers" error.
 4. Open http://localhost:80 in your browser
 
+## Stopping - remove the containers
+
+1. Press `Ctrl+C` in the terminal window where the `run.*.sh` script is running *(for Apple Silicon only)*
+2. Either stop the Docker containers in Docker Desktop, or:
+    - `docker-compose -p webcat_apple-silicon_prod -f docker-compose.apple-silicon.yaml down` *(for Apple Silicon only)*
+    - `docker-compose -p webcat_cpu_prod -f docker-compose.cpu.yaml down` *(for CPU runner)*
+    - `docker-compose -p webcat_gpu_prod -f docker-compose.gpu.yaml down` *(for GPU runner)*
 
 ## Apple Silicon (M1, M2) support
 

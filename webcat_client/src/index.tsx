@@ -25,7 +25,7 @@ export const AppContext = React.createContext<AppContextType>(undefined as any);
 // storage for server ip, port and api
 function getServerInfo() {
   const ip = localStorage.getItem('server_ip') || '127.0.0.1'
-  const port = localStorage.getItem('server_port') || '5000';
+  const port = localStorage.getItem('server_port') || '5042';
   const api = localStorage.getItem('server_api') || '/api/v1';
   console.log(`Loading: serverIp: ${ip}, serverPort: ${port}, serverApi: ${api}`);
   return { ip, port, api };

@@ -19,7 +19,7 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - '5000:5000'
+      - '5042:5042'
     depends_on:
       - postgres
     volumes:

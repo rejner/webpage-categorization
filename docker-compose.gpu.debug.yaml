@@ -29,7 +29,7 @@ services:
       context: ./webcat_api
       dockerfile: Dockerfile
     ports:
-      - '5000:5000'
+      - '5042:5042'
       - '5677:5677'
     depends_on:
       - postgres
