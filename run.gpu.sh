@@ -40,6 +40,7 @@ docker pull python:3.11-slim
 docker pull nginx:1.21.0-alpine
 docker pull node:16-alpine
 
+
 # run docker-compose
 docker-compose -p webcat_gpu_prod -f docker-compose.gpu.yaml up -d
 
