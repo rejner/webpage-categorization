@@ -1,0 +1,2 @@
+# Place your data here in order for workers to see it
+ - If the project is run via run.apple-silicon.sh, data can be accessed from anywhere on the host machine

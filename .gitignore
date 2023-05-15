@@ -3,6 +3,7 @@ playground
 models
 res
 data/*
+!data/.keep
 client/webcat_ui/node_modules
 **/__pycache__
 logs/*
