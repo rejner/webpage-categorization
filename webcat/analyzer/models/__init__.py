@@ -7,17 +7,19 @@ from transformers import pipeline
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from transformers import AutoModelForTokenClassification
 
+# Add your models here, see the examples below
+
 models = [
-    {
-        "tokenizer": "facebook/bart-large-mnli",
-        "model": "facebook/bart-large-mnli",
-        "pipeline": "zero-shot-classification",
-        "model_class": AutoModelForSequenceClassification,
-        "tokenizer_class": AutoTokenizer,
-        "base_class": BARTLarge,
-        "task": "classification",
-        "default": False
-    },
+    # {
+    #     "tokenizer": "facebook/bart-large-mnli",
+    #     "model": "facebook/bart-large-mnli",
+    #     "pipeline": "zero-shot-classification",
+    #     "model_class": AutoModelForSequenceClassification,
+    #     "tokenizer_class": AutoTokenizer,
+    #     "base_class": BARTLarge,
+    #     "task": "classification",
+    #     "default": False
+    # },
     {
         "tokenizer": "tner/twitter-roberta-base-dec2021-tweetner7-random",
         "model": "tner/twitter-roberta-base-dec2021-tweetner7-random",
@@ -28,16 +30,16 @@ models = [
         "task": "ner",
         "default": True
     },
-    {
-        "tokenizer": "MoritzLaurer/DeBERTa-v3-base-mnli",
-        "model": "MoritzLaurer/DeBERTa-v3-base-mnli",
-        "pipeline": "zero-shot-classification",
-        "model_class": AutoModelForSequenceClassification,
-        "tokenizer_class": AutoTokenizer,
-        "base_class": DeBerta_v3_base_mnli,
-        "task": "classification",
-        "default": False
-    },
+    # {
+    #     "tokenizer": "MoritzLaurer/DeBERTa-v3-base-mnli",
+    #     "model": "MoritzLaurer/DeBERTa-v3-base-mnli",
+    #     "pipeline": "zero-shot-classification",
+    #     "model_class": AutoModelForSequenceClassification,
+    #     "tokenizer_class": AutoTokenizer,
+    #     "base_class": DeBerta_v3_base_mnli,
+    #     "task": "classification",
+    #     "default": False
+    # },
     {
         "tokenizer": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c",
         "model": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c",
@@ -67,8 +69,6 @@ def list_classification_models():
         if models["task"] == "classification":
             classification_models.append(model)
     return classification_models
-
-
 
 def list_ner_models():
     ner_models = []
