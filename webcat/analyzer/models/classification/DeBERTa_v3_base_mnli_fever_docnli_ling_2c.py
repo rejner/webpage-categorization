@@ -4,6 +4,27 @@ import torch
 import logging
 
 class DeBerta_v3_base_mnli_fever_docnli_ling_2c():
+    """
+    A class representing a DeBERTa v3 base model trained on MNLI, FEVER, DOCNLI, LING, 2C datasets.
+
+    Attributes:
+        path (str): The path to the model.
+        name (str): The name of the model.
+        size (str): The size of the model.
+        description (str): A description of the model.
+        default_hypothesis (str): The default hypothesis for zero-shot classification.
+        labels (list): The list of labels for zero-shot classification.
+        model (pipeline): The DeBERTa v3 base model pipeline.
+        hypothesis_template (str): The hypothesis template for zero-shot classification.
+        batch_size (int): The batch size for zero-shot classification.
+
+    Methods:
+        get_device(): Returns the device to use for the model.
+        determine_params(**kwargs): Determines the parameters for zero-shot classification.
+        classify(inputs, **kwargs): Classifies the inputs using zero-shot classification.
+        classify_dataset(dataset, **kwargs): Classifies the dataset using zero-shot classification.
+    """
+        
     path = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
     name = "DeBERTa v3 base MNLI FEVER DocNLI Ling 2c"
     size = "369 MB"

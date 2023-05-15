@@ -1,4 +1,6 @@
 #!/bin/bash
+# This script is used to run WebCat system on any machine with GPU (NVIDIA CUDA).
+# It is recommended to use GPU as it provides much faster inference times.
 
 # Check if .env file exists
 if [ ! -f .env ]; then

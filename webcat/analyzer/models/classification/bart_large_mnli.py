@@ -4,6 +4,24 @@ import torch
 import logging
 
 class BARTLarge():
+    """
+    A class representing a BART Large MNLI model.
+
+    Attributes:
+    - path (str): The path to the BART Large MNLI model.
+    - name (str): The name of the BART Large MNLI model.
+    - size (str): The size of the BART Large MNLI model.
+    - description (str): A description of the BART Large MNLI model.
+    - default_hypothesis (str): The default hypothesis for the BART Large MNLI model.
+
+    Methods:
+    - get_device(): Returns the device to use for the BART Large MNLI model.
+    - __init__(self, init_labels=None): Initializes a BARTLarge object.
+    - determine_params(self, **kwargs): Determines the parameters for the BART Large MNLI model.
+    - classify(self, inputs, **kwargs): Classifies the inputs using the BART Large MNLI model.
+    - classify_dataset(self, dataset, **kwargs): Classifies the dataset using the BART Large MNLI model.
+    """
+        
     path = "facebook/bart-large-mnli"
     name = "BART Large MNLI"
     size = "1.6 GB"

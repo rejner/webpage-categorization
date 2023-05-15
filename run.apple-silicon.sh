@@ -1,4 +1,8 @@
 #!/bin/bash
+# This script is used to run WebCat system on Apple Silicon (M1) machines.
+# The worker service is run outside of docker container, because it is not possible to run
+# PyTorch with MPS backend inside of container yet.
+# It is assumed that docker is already installed on the machine.
 
 # Check if .env file exists
 if [ ! -f .env ]; then

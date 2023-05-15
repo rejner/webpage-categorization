@@ -1,4 +1,6 @@
 #!/bin/bash
+# This script is used to run WebCat system on any machine with CPU (Intel/AMD/Apple Silicon).
+# When used with Apple Silicon, see the run.apple-silicon.sh script for acceleration with MPS backend.
 
 # Check if .env file exists
 if [ ! -f .env ]; then

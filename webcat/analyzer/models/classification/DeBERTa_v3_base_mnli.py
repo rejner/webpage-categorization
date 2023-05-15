@@ -4,6 +4,26 @@ import torch
 import logging
 
 class DeBerta_v3_base_mnli():
+    """
+    A class that wraps the DeBERTa v3 base architecture trained on the MNLI dataset for zero-shot classification
+    of text inputs.
+
+    Attributes:
+        path (str): The path to the DeBERTa v3 base MNLI model.
+        name (str): The name of the DeBERTa v3 base MNLI model.
+        size (str): The size of the DeBERTa v3 base MNLI model.
+        description (str): A description of the DeBERTa v3 base MNLI model.
+        default_hypothesis (str): The default hypothesis template for zero-shot classification.
+
+    Methods:
+        __init__(self, init_labels=None): Initializes a DeBerta_v3_base_mnli object.
+        get_device(self): Returns the device to use for running the model.
+        determine_params(self, **kwargs): Determines the parameters to use for classification.
+        classify(self, inputs, **kwargs): Classifies a list of text inputs.
+        classify_dataset(self, dataset, **kwargs): Classifies a dataset of text inputs.
+
+    """
+        
     path = "MoritzLaurer/DeBERTa-v3-base-mnli"
     name = "DeBERTa v3 base MNLI"
     size = "720 MB"
