@@ -103,5 +103,5 @@ Some services contain configurations for both debugging purposes and production.
  - The codebase needs to be refactored and cleaned up eventually, after that, the documentation will be updated accordingly.
  - The codebase is not fully tested, more tests need to be written.
  - Database migrations are not fully automated, they need to be run manually.
-
+ - If the request fails with a "No workers available" error, but the worker service is running and models were already downloaded, try to send the request again a few times. This issue has been observed only on the debug configuration and it is caused by the error in the database connection. This issue was not experienced on the production configuration, but it is possible that it can happen there as well. We will try to fix this issue in the near future.
 
